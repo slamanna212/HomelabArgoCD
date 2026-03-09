@@ -50,18 +50,25 @@ manifests/       # Raw K8s manifests (IngressRoutes, etc.), organized by subdire
 
 ## Traefik Entrypoints & UI Access
 
-All UIs are exposed via Traefik IngressRoutes on the Traefik LoadBalancer IP:
+Traefik runs two LoadBalancer services with separate IPs (assigned by MetalLB). Each port's `expose` map in `values/traefik.yaml` controls which service it appears on.
+
+**Default service (IP #1) — Infrastructure UIs:**
 
 | Service      | Port  | IngressRoute Location                          |
 |-------------|-------|-------------------------------------------------|
 | Traefik     | 8080  | Built-in dashboard                              |
 | Longhorn    | 8088  | `manifests/traefik/longhorn-ingressroute.yaml`  |
 | ArgoCD      | 9443  | `manifests/traefik/argocd-ingressroute.yaml`    |
+
+**Monitoring service (IP #2) — Monitoring UIs:**
+
+| Service      | Port  | IngressRoute Location                          |
+|-------------|-------|-------------------------------------------------|
 | Grafana     | 3000  | `manifests/traefik/grafana-ingressroute.yaml`   |
 | Prometheus  | 9090  | `manifests/traefik/prometheus-ingressroute.yaml` |
 | Alertmanager| 9093  | `manifests/traefik/alertmanager-ingressroute.yaml`|
 
-To expose a new service: add an entrypoint in `values/traefik.yaml` and an IngressRoute in `manifests/traefik/`.
+To expose a new service: add an entrypoint in `values/traefik.yaml` (with the appropriate `expose` map for default vs monitoring service) and an IngressRoute in `manifests/traefik/`.
 
 ## Bootstrap Process
 

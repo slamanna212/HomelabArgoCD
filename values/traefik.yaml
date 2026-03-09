@@ -1,3 +1,8 @@
+service:
+  additionalServices:
+    monitoring:
+      type: LoadBalancer
+
 api:
   dashboard: true
   insecure: true
@@ -6,37 +11,43 @@ ports:
   traefik:
     expose:
       default: true
+      monitoring: false
   # Existing entrypoints (migrated from Ansible)
   argocd:
     port: 9443
     exposedPort: 9443
     expose:
       default: true
+      monitoring: false
     protocol: TCP
   longhorn:
     port: 8088
     exposedPort: 8088
     expose:
       default: true
+      monitoring: false
     protocol: TCP
   # Monitoring entrypoints
   grafana:
     port: 3000
     exposedPort: 3000
     expose:
-      default: true
+      default: false
+      monitoring: true
     protocol: TCP
   prometheus:
     port: 9090
     exposedPort: 9090
     expose:
-      default: true
+      default: false
+      monitoring: true
     protocol: TCP
   alertmanager:
     port: 9093
     exposedPort: 9093
     expose:
-      default: true
+      default: false
+      monitoring: true
     protocol: TCP
 
 providers:
