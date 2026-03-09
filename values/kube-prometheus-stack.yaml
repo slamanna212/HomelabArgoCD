@@ -1,0 +1,65 @@
+# kube-prometheus-stack Helm values
+# Homelab cluster: 3 control-plane + 4 worker nodes
+# Cilium CNI (replaces kube-proxy)
+
+# -- Prometheus --
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    retentionSize: 18GB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: longhorn-sata
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+    # Discover ServiceMonitors/PodMonitors across all namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+
+# -- Grafana --
+grafana:
+  adminPassword: admin
+  defaultDashboardsTimezone: America/New_York
+  defaultDashboardsEnabled: true
+  persistence:
+    enabled: true
+    storageClassName: longhorn-sata
+    size: 5Gi
+  sidecar:
+    dashboards:
+      searchNamespace: ALL
+
+# -- Alertmanager --
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: longhorn-sata
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+
+# -- node-exporter --
+nodeExporter:
+  enabled: true
+
+# -- kube-state-metrics --
+kubeStateMetrics:
+  enabled: true
+
+# -- Cilium-aware settings --
+kubeProxy:
+  enabled: false
+
+defaultRules:
+  rules:
+    kubeProxy: false
