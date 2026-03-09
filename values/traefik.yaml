@@ -27,6 +27,13 @@ ports:
       default: true
       monitoring: false
     protocol: TCP
+  headlamp:
+    port: 4466
+    exposedPort: 4466
+    expose:
+      default: true
+      monitoring: false
+    protocol: TCP
   # Monitoring entrypoints
   grafana:
     port: 3000
