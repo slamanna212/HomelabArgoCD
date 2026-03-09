@@ -1,0 +1,54 @@
+# Loki Helm values
+# Monolithic (SingleBinary) mode for homelab scale
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  storage:
+    type: filesystem
+  limits_config:
+    retention_period: 14d
+  compactor:
+    retention_enabled: true
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    storageClass: longhorn-sata
+    size: 20Gi
+
+# Disable distributed-mode components
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Disable unnecessary sub-charts and features
+gateway:
+  enabled: false
+monitoring:
+  selfMonitoring:
+    enabled: false
+  lokiCanary:
+    enabled: false
+test:
+  enabled: false
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
