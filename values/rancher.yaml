@@ -2,8 +2,8 @@ hostname: rancher.local
 
 replicas: 1
 
-# Traefik handles external traffic; Rancher serves HTTP internally
-tls: external
+# Rancher manages its own TLS; Traefik passes through via TCP
+tls: rancher
 
 # Disable the built-in ingress since we use Traefik IngressRoute
 ingress:
