@@ -8,7 +8,6 @@ metadata:
 data:
   arc-autoscaling-runner-set-monitoring.json: |
     {
-      "__elements": {},
       "annotations": {
         "list": [
           {
@@ -28,7 +27,6 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": null,
       "links": [],
       "liveNow": true,
       "panels": [
@@ -67,8 +65,8 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
-            "w": 7,
+            "h": 8,
+            "w": 5,
             "x": 0,
             "y": 1
           },
@@ -89,7 +87,7 @@ data:
               "color": "rgba(255,0,255,0.7)"
             },
             "filterValues": {
-              "le": 1e-09
+              "le": 1e-9
             },
             "legend": {
               "show": true
@@ -109,7 +107,7 @@ data:
               "unit": "s"
             }
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -156,9 +154,9 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
-            "w": 8,
-            "x": 7,
+            "h": 8,
+            "w": 5,
+            "x": 5,
             "y": 1
           },
           "id": 6,
@@ -178,7 +176,7 @@ data:
               "color": "rgba(255,0,255,0.7)"
             },
             "filterValues": {
-              "le": 1e-09
+              "le": 1e-9
             },
             "legend": {
               "show": true
@@ -198,7 +196,7 @@ data:
               "unit": "s"
             }
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -242,7 +240,7 @@ data:
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -254,10 +252,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 5,
+            "h": 4,
             "w": 3,
-            "x": 0,
-            "y": 8
+            "x": 10,
+            "y": 1
           },
           "id": 9,
           "options": {
@@ -275,7 +273,7 @@ data:
             "showThresholdMarkers": true,
             "sizing": "auto"
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -300,7 +298,6 @@ data:
               },
               "editorMode": "code",
               "expr": "sum(gha_desired_runners{namespace=~\"$RunnerNamespace\", repository=~\"$Scaleset\"}) + 1",
-              "hide": false,
               "instant": false,
               "legendFormat": "threshold",
               "range": true,
@@ -348,7 +345,7 @@ data:
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -360,10 +357,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 5,
+            "h": 4,
             "w": 3,
-            "x": 3,
-            "y": 8
+            "x": 13,
+            "y": 1
           },
           "id": 4,
           "options": {
@@ -381,7 +378,7 @@ data:
             "showThresholdMarkers": true,
             "sizing": "auto"
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -408,6 +405,312 @@ data:
             "type": "prometheus",
             "uid": "prometheus"
           },
+          "description": "The number of workflow jobs currently executing",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 16,
+            "y": 1
+          },
+          "id": 10,
+          "options": {
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "last"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
+          },
+          "pluginVersion": "12.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum (gha_running_jobs{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Running Jobs",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "The Kubernetes-reported pod status.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "min": 0,
+              "noValue": "No active pods",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "yellow",
+                    "value": 0
+                  },
+                  {
+                    "color": "green",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 19,
+            "y": 1
+          },
+          "id": 11,
+          "options": {
+            "displayMode": "lcd",
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "maxVizHeight": 300,
+            "minVizHeight": 10,
+            "minVizWidth": 0,
+            "namePlacement": "auto",
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "last"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showUnfilled": true,
+            "sizing": "auto",
+            "valueMode": "color"
+          },
+          "pluginVersion": "12.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "disableTextWrap": false,
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(kube_pod_container_status_ready{namespace=~\"$RunnerNamespace\"}) != 0 or vector(0)",
+              "format": "time_series",
+              "fullMetaSearch": false,
+              "includeNullMetadata": true,
+              "instant": false,
+              "interval": "",
+              "legendFormat": "Ready",
+              "range": true,
+              "refId": "B",
+              "useBackend": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(kube_pod_container_status_waiting{namespace=~\"$RunnerNamespace\"}) != 0 or vector(0)",
+              "instant": false,
+              "legendFormat": "Waiting",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Completed\"}) != 0 or vector(0)",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "Completed",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Error\"}) != 0 or vector(0)",
+              "instant": false,
+              "legendFormat": "Error",
+              "range": true,
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "disableTextWrap": false,
+              "editorMode": "code",
+              "expr": "sum(gha_desired_runners)+1",
+              "fullMetaSearch": false,
+              "includeNullMetadata": true,
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "DesiredRunners",
+              "useBackend": false
+            }
+          ],
+          "title": "Container Pod Status",
+          "transformations": [
+            {
+              "id": "configFromData",
+              "options": {
+                "applyTo": {
+                  "id": "byName",
+                  "options": "Ready"
+                },
+                "configRefId": "DesiredRunners",
+                "mappings": [
+                  {
+                    "fieldName": "Time",
+                    "handlerKey": "__ignore"
+                  },
+                  {
+                    "fieldName": "sum(gha_desired_runners) + 1",
+                    "handlerKey": "threshold1"
+                  },
+                  {
+                    "fieldName": "sum(gha_desired_runners) -5",
+                    "handlerKey": "threshold1"
+                  }
+                ]
+              }
+            }
+          ],
+          "type": "bargauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "The number of active scale set listeners",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "fieldMinMax": true,
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 10,
+            "y": 5
+          },
+          "id": 5,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "pluginVersion": "12.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(gha_controller_running_listeners{namespace=~\"$SystemNamespace\"})",
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Listeners",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "description": "Number of registered runners that do not have assigned jobs.",
           "fieldConfig": {
             "defaults": {
@@ -423,7 +726,7 @@ data:
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -435,10 +738,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 5,
+            "h": 4,
             "w": 3,
-            "x": 6,
-            "y": 8
+            "x": 13,
+            "y": 5
           },
           "id": 2,
           "options": {
@@ -456,7 +759,7 @@ data:
             "showThresholdMarkers": true,
             "sizing": "auto"
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -483,392 +786,6 @@ data:
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "description": "The number of workflow jobs currently executing",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "noValue": "0",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 3,
-            "x": 9,
-            "y": 8
-          },
-          "id": 10,
-          "options": {
-            "minVizHeight": 75,
-            "minVizWidth": 75,
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "last"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showThresholdLabels": false,
-            "showThresholdMarkers": true,
-            "sizing": "auto"
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "expr": "sum (gha_running_jobs{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
-              "instant": false,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Running Jobs",
-          "type": "gauge"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "The number of runners in a failed state. These runners are typically misconfigured and count against the scale set's maximum limit.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "noValue": "0",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 1
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 3,
-            "x": 12,
-            "y": 8
-          },
-          "id": 26,
-          "options": {
-            "minVizHeight": 75,
-            "minVizWidth": 75,
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "last"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showThresholdLabels": false,
-            "showThresholdMarkers": true,
-            "sizing": "auto"
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "expr": "sum(gha_controller_failed_ephemeral_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
-              "instant": false,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Failed Runners",
-          "type": "gauge"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "The number of active scale set listeners",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "fieldMinMax": true,
-              "mappings": [],
-              "noValue": "0",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 3,
-            "x": 0,
-            "y": 13
-          },
-          "id": 5,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "expr": "sum(gha_controller_running_listeners{namespace=~\"$SystemNamespace\"})",
-              "hide": false,
-              "instant": false,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Listeners",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "Number of runner pods that are waiting to be created. When this number exceeds the number of pods Kubernetes reports as Waiting, it indicate cluster performance issues.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "decimals": 0,
-              "fieldMinMax": false,
-              "mappings": [],
-              "noValue": "0",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 3,
-            "x": 3,
-            "y": 13
-          },
-          "id": 3,
-          "options": {
-            "minVizHeight": 75,
-            "minVizWidth": 75,
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "last"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showThresholdLabels": true,
-            "showThresholdMarkers": true,
-            "sizing": "auto"
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "disableTextWrap": false,
-              "editorMode": "code",
-              "expr": "sum(gha_controller_pending_ephemeral_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
-              "fullMetaSearch": false,
-              "includeNullMetadata": true,
-              "instant": false,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A",
-              "useBackend": false
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_waiting{namespace=~\"$RunnerNamespace\"}) != 0 or vector(0)",
-              "hide": false,
-              "instant": false,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "Waiting"
-            }
-          ],
-          "title": "Pending Runners",
-          "transformations": [
-            {
-              "id": "configFromData",
-              "options": {
-                "configRefId": "Waiting",
-                "mappings": [
-                  {
-                    "fieldName": "Time",
-                    "handlerKey": "__ignore"
-                  },
-                  {
-                    "fieldName": "sum(kube_pod_container_status_waiting{namespace=~\"(arc-runners|arc-runners-dind|arc-runners-k8s)\"}) != 0 or vector(0)",
-                    "handlerKey": "threshold1"
-                  }
-                ]
-              }
-            }
-          ],
-          "type": "gauge"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "The number of runners registered for processing queued jobs",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "noValue": "0",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 3,
-            "x": 6,
-            "y": 13
-          },
-          "id": 8,
-          "options": {
-            "minVizHeight": 75,
-            "minVizWidth": 75,
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "last"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showThresholdLabels": true,
-            "showThresholdMarkers": true,
-            "sizing": "auto"
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "expr": "sum(gha_registered_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
-              "instant": false,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Registered Runners",
-          "type": "gauge"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
           "description": "Number of runner pods in a running state",
           "fieldConfig": {
             "defaults": {
@@ -884,7 +801,7 @@ data:
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -896,10 +813,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 5,
+            "h": 4,
             "w": 3,
-            "x": 9,
-            "y": 13
+            "x": 16,
+            "y": 5
           },
           "id": 1,
           "options": {
@@ -917,7 +834,7 @@ data:
             "showThresholdMarkers": true,
             "sizing": "auto"
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -957,7 +874,7 @@ data:
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "semi-dark-red",
@@ -969,10 +886,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 5,
-            "w": 3,
-            "x": 12,
-            "y": 13
+            "h": 4,
+            "w": 5,
+            "x": 19,
+            "y": 5
           },
           "id": 23,
           "options": {
@@ -992,18 +909,18 @@ data:
             "textMode": "auto",
             "wideLayout": true
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "editorMode": "code",
               "expr": "sum(kube_pod_container_status_last_terminated_reason{reason=\"OOMKilled\",namespace=~\"$RunnerNamespace\"}) by (namespace)",
               "legendFormat": "__auto",
               "range": true,
-              "refId": "A",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
+              "refId": "A"
             }
           ],
           "title": "Out of Memory",
@@ -1028,7 +945,7 @@ data:
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1044,7 +961,7 @@ data:
             "h": 6,
             "w": 5,
             "x": 0,
-            "y": 18
+            "y": 9
           },
           "id": 12,
           "options": {
@@ -1062,7 +979,7 @@ data:
             "showThresholdMarkers": false,
             "sizing": "auto"
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -1117,6 +1034,7 @@ data:
                   "type": "log"
                 },
                 "showPoints": "auto",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1132,7 +1050,7 @@ data:
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1146,9 +1064,9 @@ data:
           },
           "gridPos": {
             "h": 6,
-            "w": 6,
+            "w": 5,
             "x": 5,
-            "y": 18
+            "y": 9
           },
           "id": 13,
           "options": {
@@ -1164,7 +1082,7 @@ data:
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -1185,7 +1103,6 @@ data:
               },
               "editorMode": "code",
               "expr": "sum(rate(container_fs_reads_bytes_total{namespace=~\"$RunnerNamespace\"}[$__rate_interval])) > 0 or vector(0)",
-              "hide": false,
               "instant": false,
               "legendFormat": "Read",
               "range": true,
@@ -1200,24 +1117,25 @@ data:
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "description": "The Kubernetes-reported pod status.",
+          "description": "Number of runner pods that are waiting to be created. When this number exceeds the number of pods Kubernetes reports as Waiting, it indicate cluster performance issues.",
           "fieldConfig": {
             "defaults": {
               "color": {
                 "mode": "thresholds"
               },
+              "decimals": 0,
+              "fieldMinMax": false,
               "mappings": [],
-              "min": 0,
-              "noValue": "No active pods",
+              "noValue": "0",
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "yellow",
-                    "value": null
+                    "color": "green",
+                    "value": 0
                   },
                   {
-                    "color": "green",
+                    "color": "red",
                     "value": 80
                   }
                 ]
@@ -1227,24 +1145,15 @@ data:
           },
           "gridPos": {
             "h": 6,
-            "w": 4,
-            "x": 11,
-            "y": 18
+            "w": 3,
+            "x": 10,
+            "y": 9
           },
-          "id": 11,
+          "id": 3,
           "options": {
-            "displayMode": "lcd",
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
-            },
-            "maxVizHeight": 300,
-            "minVizHeight": 10,
-            "minVizWidth": 0,
-            "namePlacement": "auto",
-            "orientation": "horizontal",
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
             "reduceOptions": {
               "calcs": [
                 "last"
@@ -1252,11 +1161,11 @@ data:
               "fields": "",
               "values": false
             },
-            "showUnfilled": true,
-            "sizing": "auto",
-            "valueMode": "color"
+            "showThresholdLabels": true,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
           },
-          "pluginVersion": "11.5.2",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -1265,17 +1174,13 @@ data:
               },
               "disableTextWrap": false,
               "editorMode": "code",
-              "exemplar": false,
-              "expr": "sum(kube_pod_container_status_ready{namespace=~\"$RunnerNamespace\"}) != 0 or vector(0)",
-              "format": "time_series",
+              "expr": "sum(gha_controller_pending_ephemeral_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
               "fullMetaSearch": false,
-              "hide": false,
               "includeNullMetadata": true,
               "instant": false,
-              "interval": "",
-              "legendFormat": "Ready",
+              "legendFormat": "__auto",
               "range": true,
-              "refId": "B",
+              "refId": "A",
               "useBackend": false
             },
             {
@@ -1285,755 +1190,848 @@ data:
               },
               "editorMode": "code",
               "expr": "sum(kube_pod_container_status_waiting{namespace=~\"$RunnerNamespace\"}) != 0 or vector(0)",
-              "hide": false,
-              "instant": false,
-              "legendFormat": "Waiting",
-              "range": true,
-              "refId": "C"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Completed\"}) != 0 or vector(0)",
-              "hide": false,
-              "instant": false,
-              "interval": "",
-              "legendFormat": "Completed",
-              "range": true,
-              "refId": "D"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Error\"}) != 0 or vector(0)",
-              "hide": false,
-              "instant": false,
-              "legendFormat": "Error",
-              "range": true,
-              "refId": "E"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "disableTextWrap": false,
-              "editorMode": "code",
-              "expr": "sum(gha_desired_runners)+1",
-              "fullMetaSearch": false,
-              "hide": false,
-              "includeNullMetadata": true,
               "instant": false,
               "legendFormat": "__auto",
               "range": true,
-              "refId": "DesiredRunners",
-              "useBackend": false
+              "refId": "Waiting"
             }
           ],
-          "title": "Container Pod Status",
+          "title": "Pending Runners",
           "transformations": [
             {
               "id": "configFromData",
               "options": {
-                "applyTo": {
-                  "id": "byName",
-                  "options": "Ready"
-                },
-                "configRefId": "DesiredRunners",
+                "configRefId": "Waiting",
                 "mappings": [
                   {
                     "fieldName": "Time",
                     "handlerKey": "__ignore"
                   },
                   {
-                    "fieldName": "sum(gha_desired_runners) + 1",
-                    "handlerKey": "threshold1"
-                  },
-                  {
-                    "fieldName": "sum(gha_desired_runners) -5",
+                    "fieldName": "sum(kube_pod_container_status_waiting{namespace=~\"(arc-runners|arc-runners-dind|arc-runners-k8s)\"}) != 0 or vector(0)",
                     "handlerKey": "threshold1"
                   }
                 ]
               }
             }
           ],
-          "type": "bargauge"
+          "type": "gauge"
         },
         {
-          "collapsed": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "The number of runners in a failed state. These runners are typically misconfigured and count against the scale set's maximum limit.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 13,
+            "y": 9
+          },
+          "id": 26,
+          "options": {
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "last"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
+          },
+          "pluginVersion": "12.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(gha_controller_failed_ephemeral_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Failed Runners",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "The number of runners registered for processing queued jobs",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 16,
+            "y": 9
+          },
+          "id": 8,
+          "options": {
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "last"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": true,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
+          },
+          "pluginVersion": "12.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "sum(gha_registered_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Registered Runners",
+          "type": "gauge"
+        },
+        {
+          "collapsed": true,
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 24
+            "y": 15
           },
           "id": 16,
-          "panels": [],
+          "panels": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "description": "The average time required for a reconciliation request to be processed. This reflects the time required for the controller to process a single request to modify a Kubernetes resource.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 33,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "smooth",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "s"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 0,
+                "y": 16
+              },
+              "id": 17,
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "12.4.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "rate(controller_runtime_reconcile_time_seconds_sum{namespace=\"$SystemNamespace\"}[$__rate_interval])",
+                  "interval": "",
+                  "legendFormat": "{{controller}}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Reconcile Time",
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "description": "The average time a queued reconciliation request spends waiting to be processed.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 27,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "s"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 6,
+                "y": 16
+              },
+              "id": 18,
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "12.4.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "rate(workqueue_queue_duration_seconds_sum{namespace=\"$SystemNamespace\"}[$__rate_interval])",
+                  "legendFormat": "{{controller}}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Workqueue Queue Duration",
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "description": "Errors indicate that controller has not achieved a desired state and is requesting Kubernetes to queue another request for reconciliation. Ideally, this number remains close to zero. An increasing number can indicate resource contention or delays processing API server requests.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 33,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "smooth",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 12,
+                "y": 16
+              },
+              "id": 27,
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "12.4.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "rate(controller_runtime_reconcile_errors_total{namespace=\"$SystemNamespace\"}[$__rate_interval])",
+                  "interval": "",
+                  "legendFormat": "{{controller}}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Reconciliation Errors",
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "description": "The number of reconcile requests that are waiting to be processed by the controller. A growing queue depth can indicate that the Kubernetes API Server or the controller does not have enough resources. This can lead to pods taking longer to be deleted or started. ",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "fieldMinMax": false,
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 0,
+                "y": 24
+              },
+              "id": 20,
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "max"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "pluginVersion": "12.4.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum (workqueue_depth{namespace=\"$SystemNamespace\"}) by (name)",
+                  "legendFormat": "__auto",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Queue Depth",
+              "type": "stat"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "description": "The number of workers that are currently being used to process reconcile requests. Increasing this number can reduce the work queue duration, but each new worker adds a small amount of time due to context switching.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 6,
+                "y": 24
+              },
+              "id": 21,
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "max"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "pluginVersion": "12.4.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum by (controller) (controller_runtime_active_workers)",
+                  "legendFormat": "__auto",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Active Workers",
+              "type": "stat"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "description": "The number of calls to the API server",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 27,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "smooth",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "normal"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 12,
+                "y": 24
+              },
+              "id": 19,
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "12.4.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum by (method, code) (rate(rest_client_requests_total{namespace=\"$SystemNamespace\"}[$__rate_interval]))",
+                  "format": "time_series",
+                  "legendFormat": "__auto",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "API Calls",
+              "type": "timeseries"
+            }
+          ],
           "title": "Controller Performance",
           "type": "row"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "The average time required for a reconciliation request to be processed. This reflects the time required for the controller to process a single request to modify a Kubernetes resource.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 33,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "smooth",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 0,
-            "y": 25
-          },
-          "id": 17,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "editorMode": "code",
-              "expr": "rate(controller_runtime_reconcile_time_seconds_sum{namespace=\"$SystemNamespace\"}[$__rate_interval])",
-              "interval": "",
-              "legendFormat": "{{controller}}",
-              "range": true,
-              "refId": "A",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "title": "Reconcile Time",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "The average time a queued reconciliation request spends waiting to be processed.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 27,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 6,
-            "y": 25
-          },
-          "id": 18,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "editorMode": "code",
-              "expr": "rate(workqueue_queue_duration_seconds_sum{namespace=\"$SystemNamespace\"}[$__rate_interval])",
-              "legendFormat": "{{controller}}",
-              "range": true,
-              "refId": "A",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "title": "Workqueue Queue Duration",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "Errors indicate that controller has not achieved a desired state and is requesting Kubernetes to queue another request for reconciliation. Ideally, this number remains close to zero. An increasing number can indicate resource contention or delays processing API server requests.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 33,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "smooth",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 12,
-            "y": 25
-          },
-          "id": 27,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "editorMode": "code",
-              "expr": "rate(controller_runtime_reconcile_errors_total{namespace=\"$SystemNamespace\"}[$__rate_interval])",
-              "interval": "",
-              "legendFormat": "{{controller}}",
-              "range": true,
-              "refId": "A",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "title": "Reconciliation Errors",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "The number of reconcile requests that are waiting to be processed by the controller. A growing queue depth can indicate that the Kubernetes API Server or the controller does not have enough resources. This can lead to pods taking longer to be deleted or started. ",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "fieldMinMax": false,
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 100
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 0,
-            "y": 33
-          },
-          "id": 20,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "max"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "editorMode": "code",
-              "expr": "sum (workqueue_depth{namespace=\"$SystemNamespace\"}) by (name)",
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "title": "Queue Depth",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "The number of workers that are currently being used to process reconcile requests. Increasing this number can reduce the work queue duration, but each new worker adds a small amount of time due to context switching.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 6,
-            "y": 33
-          },
-          "id": 21,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "max"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "editorMode": "code",
-              "expr": "sum by (controller) (controller_runtime_active_workers)",
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "title": "Active Workers",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "The number of calls to the API server",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 27,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "smooth",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "normal"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 12,
-            "y": 33
-          },
-          "id": 19,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
-            {
-              "editorMode": "code",
-              "expr": "sum by (method, code) (rate(rest_client_requests_total{namespace=\"$SystemNamespace\"}[$__rate_interval]))",
-              "format": "time_series",
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "title": "API Calls",
-          "type": "timeseries"
-        },
-        {
-          "collapsed": false,
+          "collapsed": true,
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 41
+            "y": 16
           },
           "id": 25,
-          "panels": [],
-          "title": "Metrics",
-          "type": "row"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "The time required by Prometheus to read and process metrics. Long scrape times can delay metrics updates or lead to metrics loss. Increasing time often indicates issues with metrics cardinality or cluster resources.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineStyle": {
-                  "fill": "solid"
-                },
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 10,
-            "w": 18,
-            "x": 0,
-            "y": 42
-          },
-          "id": 24,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.5.2",
-          "targets": [
+          "panels": [
             {
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "scrape_duration_seconds",
-              "instant": false,
-              "legendFormat": "{{job}}",
-              "range": true,
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
-              }
+              },
+              "description": "The time required by Prometheus to read and process metrics. Long scrape times can delay metrics updates or lead to metrics loss. Increasing time often indicates issues with metrics cardinality or cluster resources.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineStyle": {
+                      "fill": "solid"
+                    },
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "never",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "s"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 10,
+                "w": 18,
+                "x": 0,
+                "y": 33
+              },
+              "id": 24,
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "12.4.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                  },
+                  "editorMode": "code",
+                  "exemplar": false,
+                  "expr": "scrape_duration_seconds",
+                  "instant": false,
+                  "legendFormat": "{{job}}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Scrape Duration",
+              "type": "timeseries"
             }
           ],
-          "title": "Scrape Duration",
-          "type": "timeseries"
+          "title": "Metrics",
+          "type": "row"
         }
       ],
+      "preload": false,
       "refresh": "5s",
-      "schemaVersion": 40,
+      "schemaVersion": 42,
       "tags": [],
       "templating": {
         "list": [
@@ -2057,6 +2055,7 @@ data:
             },
             "refresh": 1,
             "regex": "",
+            "regexApplyTo": "value",
             "type": "query"
           },
           {
@@ -2079,6 +2078,7 @@ data:
             },
             "refresh": 2,
             "regex": "",
+            "regexApplyTo": "value",
             "type": "query"
           },
           {
@@ -2101,6 +2101,7 @@ data:
             },
             "refresh": 2,
             "regex": "",
+            "regexApplyTo": "value",
             "type": "query"
           }
         ]
@@ -2124,9 +2125,9 @@ data:
           "7d"
         ]
       },
-      "timezone": "",
+      "timezone": "browser",
       "title": "ARC Autoscaling Runner Set Monitoring",
       "uid": "arc-monitoring",
-      "version": 1,
+      "version": 2,
       "weekStart": ""
     }
