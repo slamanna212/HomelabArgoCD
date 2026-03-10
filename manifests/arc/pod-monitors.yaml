@@ -18,7 +18,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: arc-listener
-  namespace: arc-runners
+  namespace: arc-systems
   labels:
     app.kubernetes.io/part-of: actions-runner-controller
 spec:
