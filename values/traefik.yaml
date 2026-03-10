@@ -40,6 +40,13 @@ ports:
       default: true
       monitoring: false
     protocol: TCP
+  rancher:
+    port: 7443
+    exposedPort: 7443
+    expose:
+      default: true
+      monitoring: false
+    protocol: TCP
   # Monitoring entrypoints
   grafana:
     port: 3000
