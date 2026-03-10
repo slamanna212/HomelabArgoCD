@@ -3,5 +3,4 @@ kind: Setting
 metadata:
   name: node-down-pod-deletion-policy
   namespace: longhorn-system
-spec:
-  value: "delete-both-statefulset-and-deployment-pod"
+value: "delete-both-statefulset-and-deployment-pod"
