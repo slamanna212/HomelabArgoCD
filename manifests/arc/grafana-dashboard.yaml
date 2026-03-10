@@ -459,7 +459,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(gha_controller_running_ephemeral_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
+              "expr": "sum(gha_assigned_jobs{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
               "instant": false,
               "legendFormat": "__auto",
               "range": true,
