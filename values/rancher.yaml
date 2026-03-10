@@ -1,6 +1,6 @@
 hostname: rancher.local
 
-replicas: 1
+replicas: 3
 
 # Rancher manages its own TLS; Traefik passes through via TCP
 tls: rancher
@@ -8,3 +8,13 @@ tls: rancher
 # Disable the built-in ingress since we use Traefik IngressRoute
 ingress:
   enabled: false
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: rancher
+          topologyKey: kubernetes.io/hostname
