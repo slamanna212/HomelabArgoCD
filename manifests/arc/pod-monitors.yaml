@@ -13,6 +13,7 @@ spec:
     - port: metrics
       path: /metrics
       interval: 30s
+      honorLabels: true
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
@@ -30,3 +31,4 @@ spec:
     - port: metrics
       path: /metrics
       interval: 30s
+      honorLabels: true
