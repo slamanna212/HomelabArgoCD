@@ -8,7 +8,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: gha-runner-scale-set-controller
+      app.kubernetes.io/name: gha-rs-controller
   podMetricsEndpoints:
     - port: metrics
       path: /metrics
@@ -23,8 +23,9 @@ metadata:
     app.kubernetes.io/part-of: actions-runner-controller
 spec:
   selector:
-    matchLabels:
-      actions.github.com/scale-set-name: rapture
+    matchExpressions:
+      - key: actions.github.com/scale-set-name
+        operator: Exists
   podMetricsEndpoints:
     - port: metrics
       path: /metrics
