@@ -1,3 +1,16 @@
+deployment:
+  replicas: 2
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+          topologyKey: kubernetes.io/hostname
+
 service:
   additionalServices:
     monitoring:
@@ -23,13 +36,6 @@ ports:
   longhorn:
     port: 8088
     exposedPort: 8088
-    expose:
-      default: true
-      monitoring: false
-    protocol: TCP
-  headlamp:
-    port: 4466
-    exposedPort: 4466
     expose:
       default: true
       monitoring: false
