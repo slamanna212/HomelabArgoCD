@@ -27,6 +27,13 @@ grafana:
   adminPassword: admin
   defaultDashboardsTimezone: America/New_York
   defaultDashboardsEnabled: true
+  initChownData:
+    enabled: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 472
+    runAsGroup: 472
+    fsGroup: 472
   persistence:
     enabled: true
     storageClassName: longhorn-sata
