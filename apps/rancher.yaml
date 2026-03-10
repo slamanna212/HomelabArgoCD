@@ -12,6 +12,7 @@ spec:
       chart: rancher
       targetRevision: "*"
       helm:
+        kubeVersion: "1.34.0"
         valueFiles:
           - $values/values/rancher.yaml
     - repoURL: https://github.com/slamanna212/HomelabArgoCD.git
