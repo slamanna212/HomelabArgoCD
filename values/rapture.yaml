@@ -4,6 +4,7 @@ githubConfigSecret: arc-github-pat
 
 controllerServiceAccount:
   namespace: arc-systems
+  name: arc-controller-gha-rs-controller
 
 listenerTemplate:
   spec:
