@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: rapture
+  name: rapture-discordbirthdaybot
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
@@ -15,7 +15,7 @@ spec:
       targetRevision: "*"
       helm:
         valueFiles:
-          - $values/values/rapture.yaml
+          - $values/values/rapture-discordbirthdaybot.yaml
     - repoURL: https://github.com/slamanna212/HomelabArgoCD.git
       targetRevision: main
       ref: values

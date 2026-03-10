@@ -1,0 +1,15 @@
+githubConfigUrl: "https://github.com/slamanna212/MatchExec"
+
+githubConfigSecret: arc-github-pat
+
+controllerServiceAccount:
+  namespace: arc-systems
+  name: arc-controller-gha-rs-controller
+
+listenerTemplate:
+  spec:
+    containers:
+      - name: listener
+
+minRunners: 3
+maxRunners: 15

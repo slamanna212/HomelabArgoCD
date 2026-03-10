@@ -1,4 +1,4 @@
-githubConfigUrl: "https://github.com/slamanna212"
+githubConfigUrl: "https://github.com/slamanna212/slamanna.food"
 
 githubConfigSecret: arc-github-pat
 
@@ -12,4 +12,4 @@ listenerTemplate:
       - name: listener
 
 minRunners: 3
-maxRunners: 20
+maxRunners: 10
