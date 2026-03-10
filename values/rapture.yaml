@@ -1,0 +1,14 @@
+githubConfigUrl: "https://github.com/slamanna212"
+
+githubConfigSecret: arc-github-pat
+
+controllerServiceAccount:
+  namespace: arc-systems
+
+listenerTemplate:
+  spec:
+    containers:
+      - name: listener
+
+minRunners: 3
+maxRunners: 20

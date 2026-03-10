@@ -1,0 +1,31 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: arc-controller
+  namespace: arc-systems
+  labels:
+    app.kubernetes.io/part-of: actions-runner-controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gha-runner-scale-set-controller
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: arc-listener
+  namespace: arc-runners
+  labels:
+    app.kubernetes.io/part-of: actions-runner-controller
+spec:
+  selector:
+    matchLabels:
+      actions.github.com/scale-set-name: rapture
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
