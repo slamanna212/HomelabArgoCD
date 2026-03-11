@@ -1280,19 +1280,12 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "disableTextWrap": false,
               "editorMode": "code",
-              "exemplar": false,
-              "expr": "sum(kube_pod_container_status_ready{namespace=~\"$RunnerNamespace\"}) != 0 or vector(0)",
-              "format": "time_series",
-              "fullMetaSearch": false,
-              "includeNullMetadata": true,
-              "instant": false,
-              "interval": "",
+              "expr": "sum(kube_pod_container_status_ready{namespace=~\"$RunnerNamespace\"}) or on() vector(0)",
+              "instant": true,
               "legendFormat": "Ready",
-              "range": true,
-              "refId": "B",
-              "useBackend": false
+              "range": false,
+              "refId": "B"
             },
             {
               "datasource": {
@@ -1300,10 +1293,10 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_waiting{namespace=~\"$RunnerNamespace\"}) != 0 or vector(0)",
-              "instant": false,
+              "expr": "sum(kube_pod_container_status_waiting{namespace=~\"$RunnerNamespace\"}) or on() vector(0)",
+              "instant": true,
               "legendFormat": "Waiting",
-              "range": true,
+              "range": false,
               "refId": "C"
             },
             {
@@ -1312,11 +1305,10 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Completed\"}) != 0 or vector(0)",
-              "instant": false,
-              "interval": "",
+              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Completed\"}) or on() vector(0)",
+              "instant": true,
               "legendFormat": "Completed",
-              "range": true,
+              "range": false,
               "refId": "D"
             },
             {
@@ -1325,56 +1317,15 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Error\"}) != 0 or vector(0)",
-              "instant": false,
+              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Error\"}) or on() vector(0)",
+              "instant": true,
               "legendFormat": "Error",
-              "range": true,
+              "range": false,
               "refId": "E"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "disableTextWrap": false,
-              "editorMode": "code",
-              "expr": "sum(gha_desired_runners)+1",
-              "fullMetaSearch": false,
-              "includeNullMetadata": true,
-              "instant": false,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "DesiredRunners",
-              "useBackend": false
             }
           ],
           "title": "Container Pod Status",
-          "transformations": [
-            {
-              "id": "configFromData",
-              "options": {
-                "applyTo": {
-                  "id": "byName",
-                  "options": "Ready"
-                },
-                "configRefId": "DesiredRunners",
-                "mappings": [
-                  {
-                    "fieldName": "Time",
-                    "handlerKey": "__ignore"
-                  },
-                  {
-                    "fieldName": "sum(gha_desired_runners) + 1",
-                    "handlerKey": "threshold1"
-                  },
-                  {
-                    "fieldName": "sum(gha_desired_runners) -5",
-                    "handlerKey": "threshold1"
-                  }
-                ]
-              }
-            }
-          ],
+          "transformations": [],
           "type": "bargauge"
         },
         {
