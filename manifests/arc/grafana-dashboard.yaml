@@ -682,7 +682,6 @@ data:
               "decimals": 0,
               "fieldMinMax": false,
               "mappings": [],
-              "max": 3,
               "min": 0,
               "noValue": "0",
               "thresholds": {
@@ -741,38 +740,9 @@ data:
               "refId": "A",
               "useBackend": false
             },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_waiting{namespace=~\"$RunnerNamespace\"}) != 0 or vector(0)",
-              "instant": false,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "Waiting"
-            }
           ],
           "title": "Pending Runners",
-          "transformations": [
-            {
-              "id": "configFromData",
-              "options": {
-                "configRefId": "Waiting",
-                "mappings": [
-                  {
-                    "fieldName": "Time",
-                    "handlerKey": "__ignore"
-                  },
-                  {
-                    "fieldName": "sum(kube_pod_container_status_waiting{namespace=~\"(arc-runners|arc-runners-dind|arc-runners-k8s)\"}) != 0 or vector(0)",
-                    "handlerKey": "threshold1"
-                  }
-                ]
-              }
-            }
-          ],
+          "transformations": [],
           "type": "gauge"
         },
         {
