@@ -1281,9 +1281,9 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_ready{namespace=~\"$RunnerNamespace\"}) or on() vector(0)",
+              "expr": "sum(gha_desired_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"}) - sum(gha_assigned_jobs{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
               "instant": true,
-              "legendFormat": "Ready",
+              "legendFormat": "Idle",
               "range": false,
               "refId": "B"
             },
@@ -1293,9 +1293,9 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_waiting{namespace=~\"$RunnerNamespace\"}) or on() vector(0)",
+              "expr": "sum(gha_assigned_jobs{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"}) or on() vector(0)",
               "instant": true,
-              "legendFormat": "Waiting",
+              "legendFormat": "Busy",
               "range": false,
               "refId": "C"
             },
@@ -1305,9 +1305,9 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Completed\"}) or on() vector(0)",
+              "expr": "sum(gha_controller_pending_ephemeral_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"}) or on() vector(0)",
               "instant": true,
-              "legendFormat": "Completed",
+              "legendFormat": "Pending",
               "range": false,
               "refId": "D"
             },
@@ -1317,9 +1317,9 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(kube_pod_container_status_terminated_reason{namespace=~\"$RunnerNamespace\", reason=\"Error\"}) or on() vector(0)",
+              "expr": "sum(gha_controller_failed_ephemeral_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"}) or on() vector(0)",
               "instant": true,
-              "legendFormat": "Error",
+              "legendFormat": "Failed",
               "range": false,
               "refId": "E"
             }
