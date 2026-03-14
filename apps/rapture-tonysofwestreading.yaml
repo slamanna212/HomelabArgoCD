@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: tonysofwestreading
+  name: rapture-tonysofwestreading
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
@@ -15,7 +15,7 @@ spec:
       targetRevision: "*"
       helm:
         valueFiles:
-          - $values/values/tonysofwestreading.yaml
+          - $values/values/rapture-tonysofwestreading.yaml
     - repoURL: https://github.com/slamanna212/HomelabArgoCD.git
       targetRevision: main
       ref: values
