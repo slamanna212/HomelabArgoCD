@@ -1,0 +1,69 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: longhorn-alerts
+  namespace: longhorn-system
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: longhorn.volume
+      rules:
+        - alert: LonghornVolumeStatusWarning
+          expr: longhorn_volume_robustness == 2
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn volume degraded"
+            description: "Volume {{ $labels.volume }} is degraded (robustness=2) for more than 2 minutes."
+
+        - alert: LonghornVolumeStatusCritical
+          expr: longhorn_volume_robustness == 3
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Longhorn volume faulted"
+            description: "Volume {{ $labels.volume }} is faulted (robustness=3) for more than 2 minutes."
+
+        - alert: LonghornVolumeActualSpaceLow
+          expr: |
+            longhorn_volume_actual_size_bytes / longhorn_volume_capacity_bytes > 0.80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn volume space low"
+            description: "Volume {{ $labels.volume }} is using more than 80% of its capacity."
+
+    - name: longhorn.node
+      rules:
+        - alert: LonghornNodeStorageWarning
+          expr: |
+            (longhorn_disk_storage_maximum_bytes - longhorn_disk_storage_available_bytes) / longhorn_disk_storage_maximum_bytes > 0.75
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn node disk usage high"
+            description: "Node {{ $labels.node }} disk {{ $labels.disk }} usage is above 75%."
+
+        - alert: LonghornNodeStorageCritical
+          expr: |
+            (longhorn_disk_storage_maximum_bytes - longhorn_disk_storage_available_bytes) / longhorn_disk_storage_maximum_bytes > 0.90
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Longhorn node disk usage critical"
+            description: "Node {{ $labels.node }} disk {{ $labels.disk }} usage is above 90%."
+
+        - alert: LonghornNodeDown
+          expr: longhorn_node_status{condition="schedulable"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Longhorn node not schedulable"
+            description: "Longhorn node {{ $labels.node }} has been unschedulable for more than 5 minutes."

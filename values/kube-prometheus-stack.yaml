@@ -55,6 +55,7 @@ grafana:
 # -- Alertmanager --
 alertmanager:
   alertmanagerSpec:
+    configSecret: alertmanager-discord-config
     replicas: 2
     storage:
       volumeClaimTemplate:

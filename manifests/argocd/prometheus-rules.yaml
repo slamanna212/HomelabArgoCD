@@ -1,0 +1,46 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argocd-alerts
+  namespace: argocd
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: argocd.app
+      rules:
+        - alert: ArgoCDAppOutOfSync
+          expr: argocd_app_info{sync_status="OutOfSync"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ArgoCD app out of sync"
+            description: "Application {{ $labels.name }} in project {{ $labels.project }} has been OutOfSync for more than 15 minutes."
+
+        - alert: ArgoCDAppSyncFailed
+          expr: argocd_app_info{sync_status="Unknown"} == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ArgoCD app sync failed"
+            description: "Application {{ $labels.name }} in project {{ $labels.project }} has sync status Unknown for more than 5 minutes."
+
+        - alert: ArgoCDAppDegraded
+          expr: argocd_app_info{health_status="Degraded"} == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ArgoCD app degraded"
+            description: "Application {{ $labels.name }} in project {{ $labels.project }} health is Degraded for more than 5 minutes."
+
+        - alert: ArgoCDAppMissing
+          expr: argocd_app_info{health_status="Missing"} == 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ArgoCD app resources missing"
+            description: "Application {{ $labels.name }} in project {{ $labels.project }} health is Missing for more than 5 minutes."
