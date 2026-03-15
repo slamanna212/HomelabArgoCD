@@ -47,6 +47,10 @@ monitoring:
     enabled: false
   lokiCanary:
     enabled: false
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
 
 lokiCanary:
   enabled: false

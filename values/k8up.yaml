@@ -1,1 +1,4 @@
 # k8up default values are sufficient for this deployment
+metrics:
+  serviceMonitor:
+    enabled: true

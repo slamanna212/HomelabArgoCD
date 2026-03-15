@@ -70,6 +70,14 @@ ports:
       monitoring: true
     protocol: TCP
 
+metrics:
+  prometheus:
+    addServicesLabels: true
+    addEntryPointsLabels: true
+    serviceMonitor:
+      enabled: true
+      honorLabels: true
+
 providers:
   kubernetesCRD:
     allowCrossNamespace: true
