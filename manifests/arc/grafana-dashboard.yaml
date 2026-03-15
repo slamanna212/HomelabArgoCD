@@ -739,7 +739,7 @@ data:
               "range": true,
               "refId": "A",
               "useBackend": false
-            },
+            }
           ],
           "title": "Pending Runners",
           "transformations": [],
