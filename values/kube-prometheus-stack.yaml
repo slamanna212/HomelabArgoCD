@@ -24,7 +24,9 @@ prometheus:
 
 # -- Grafana --
 grafana:
-  adminPassword: admin
+  admin:
+    existingSecret: grafana-admin-secret
+    passwordKey: admin-password
   defaultDashboardsTimezone: America/New_York
   defaultDashboardsEnabled: true
   initChownData:
