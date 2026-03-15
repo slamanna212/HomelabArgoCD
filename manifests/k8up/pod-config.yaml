@@ -1,0 +1,13 @@
+apiVersion: k8up.io/v1
+kind: PodConfig
+metadata:
+  name: no-lock
+  namespace: monitoring
+spec:
+  template:
+    spec:
+      containers:
+        - name: backup
+          env:
+            - name: RESTIC_OPTIONS
+              value: "--no-lock"
