@@ -57,4 +57,4 @@ spec:
   ports:
     - name: metrics
       port: 8085
-      targetPort: 8085
+      targetPort: 8080
