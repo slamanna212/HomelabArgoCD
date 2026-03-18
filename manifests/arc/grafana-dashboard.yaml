@@ -650,7 +650,7 @@ data:
               },
               "disableTextWrap": false,
               "editorMode": "code",
-              "expr": "sum(gha_desired_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"}) - sum(gha_assigned_jobs{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
+              "expr": "sum(gha_idle_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -1255,7 +1255,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(gha_desired_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"}) - sum(gha_assigned_jobs{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
+              "expr": "sum(gha_idle_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"})",
               "instant": true,
               "legendFormat": "Idle",
               "range": false,
@@ -1267,7 +1267,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(gha_assigned_jobs{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"}) or on() vector(0)",
+              "expr": "sum(gha_busy_runners{repository=~\"$Scaleset\", namespace=~\"$RunnerNamespace\"}) or on() vector(0)",
               "instant": true,
               "legendFormat": "Busy",
               "range": false,
