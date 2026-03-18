@@ -83,7 +83,9 @@ This creates the root Application in ArgoCD, which discovers and syncs all apps 
 1. Create `apps/<app-name>.yaml` with an ArgoCD Application manifest
 2. If using Helm, create `values/<app-name>.yaml` with chart values
 3. If it needs an IngressRoute, add an entrypoint in `values/traefik.yaml` and create `manifests/traefik/<app>-ingressroute.yaml`
-4. Commit and push to `main` — ArgoCD auto-syncs
+4. **If the app uses a PVC**, create a k8up `Schedule` manifest in `manifests/k8up/<app-name>-backup.yaml` to configure backups
+5. **Always** add the new Helm chart to `renovate.json` `packageRules` if it should be grouped, or verify the ArgoCD manager in `renovate.json` will auto-detect it (charts referenced in `apps/` are auto-discovered)
+6. Commit and push to `main` — ArgoCD auto-syncs
 
 ## Notes
 
