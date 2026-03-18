@@ -14,25 +14,5 @@ listenerTemplate:
 minRunners: 3
 maxRunners: 15
 
-template:
-  spec:
-    containers:
-      - name: runner
-        image: ghcr.io/actions/actions-runner:latest
-        command: ["/home/runner/run.sh"]
-        env:
-          - name: DOCKER_HOST
-            value: unix:///var/run/docker.sock
-        volumeMounts:
-          - name: docker-sock
-            mountPath: /var/run/docker.sock
-      - name: dind
-        image: docker:dind
-        securityContext:
-          privileged: true
-        volumeMounts:
-          - name: docker-sock
-            mountPath: /var/run/docker.sock
-    volumes:
-      - name: docker-sock
-        emptyDir: {}
+containerMode:
+  type: "dind"
