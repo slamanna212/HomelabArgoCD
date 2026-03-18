@@ -3,14 +3,11 @@
   "extends": [
     "config:recommended"
   ],
-  "baseBranches": ["main"],
+  "baseBranchPatterns": ["main"],
   "labels": ["dependencies"],
-  "managers": [
-    {
-      "managerFilePatterns": ["/^apps/.+\\.yaml$/"],
-      "manager": "argocd"
-    }
-  ],
+  "argocd": {
+    "managerFilePatterns": ["/^apps/.+\\.yaml$/"]
+  },
   "packageRules": [
     {
       "description": "Group all monitoring stack updates together",
