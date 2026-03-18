@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "baseBranches": ["main"],
+  "labels": ["dependencies"],
+  "managers": [
+    {
+      "managerFilePatterns": ["/^apps/.+\\.yaml$/"],
+      "manager": "argocd"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Group all monitoring stack updates together",
+      "matchPackageNames": ["kube-prometheus-stack", "loki", "promtail"],
+      "groupName": "monitoring stack"
+    },
+    {
+      "description": "Group all GitHub Actions runner updates together",
+      "matchPackageNames": ["gha-runner-scale-set", "gha-runner-scale-set-controller"],
+      "groupName": "arc runners"
+    }
+  ]
+}
