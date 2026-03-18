@@ -12,7 +12,7 @@ spec:
   sources:
     - repoURL: ghcr.io/actions/actions-runner-controller-charts
       chart: gha-runner-scale-set
-      targetRevision: "*"
+      targetRevision: "0.13.1"
       helm:
         valueFiles:
           - $values/values/rapture-discordbirthdaybot.yaml

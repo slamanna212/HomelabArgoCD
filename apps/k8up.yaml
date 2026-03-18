@@ -10,7 +10,7 @@ spec:
   sources:
     - repoURL: https://k8up-io.github.io/k8up
       chart: k8up
-      targetRevision: "*"
+      targetRevision: "4.8.6"
       helm:
         valueFiles:
           - $values/values/k8up.yaml
