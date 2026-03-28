@@ -11,12 +11,12 @@ spec:
       rules:
         - alert: ArgoCDAppOutOfSync
           expr: argocd_app_info{sync_status="OutOfSync"} == 1
-          for: 15m
+          for: 1h
           labels:
             severity: warning
           annotations:
             summary: "ArgoCD app out of sync"
-            description: "Application {{ $labels.name }} in project {{ $labels.project }} has been OutOfSync for more than 15 minutes."
+            description: "Application {{ $labels.name }} in project {{ $labels.project }} has been OutOfSync for more than 1 hour."
 
         - alert: ArgoCDAppSyncFailed
           expr: argocd_app_info{sync_status="Unknown"} == 1
