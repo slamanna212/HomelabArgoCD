@@ -5,8 +5,8 @@
 # -- Prometheus --
 prometheus:
   prometheusSpec:
-    retention: 15d
-    retentionSize: 18GB
+    retention: 20d
+    retentionSize: 26GB
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -15,7 +15,7 @@ prometheus:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 20Gi
+              storage: 30Gi
     # Discover ServiceMonitors/PodMonitors across all namespaces
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false

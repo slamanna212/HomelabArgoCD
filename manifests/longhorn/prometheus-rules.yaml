@@ -29,13 +29,13 @@ spec:
 
         - alert: LonghornVolumeActualSpaceLow
           expr: |
-            longhorn_volume_actual_size_bytes / longhorn_volume_capacity_bytes > 0.80
+            longhorn_volume_actual_size_bytes / longhorn_volume_capacity_bytes > 0.95
           for: 5m
           labels:
             severity: warning
           annotations:
             summary: "Longhorn volume space low"
-            description: "Volume {{ $labels.volume }} is using more than 80% of its capacity."
+            description: "Volume {{ $labels.volume }} is using more than 95% of its capacity."
 
     - name: longhorn.node
       rules:
