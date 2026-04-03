@@ -1,0 +1,19 @@
+nameOverride: "redis"
+fullnameOverride: "dispatcharr-redis"
+
+architecture: standalone
+
+auth:
+  enabled: false
+
+master:
+  persistence:
+    enabled: false
+
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+      cpu: 200m

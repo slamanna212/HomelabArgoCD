@@ -1,0 +1,15 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: dispatcharr-ui
+  namespace: traefik
+spec:
+  entryPoints:
+    - dispatcharr
+  routes:
+    - match: PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: dispatcharr
+          namespace: dispatcharr
+          port: 9191

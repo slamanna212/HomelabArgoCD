@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dispatcharr-celery
+  namespace: dispatcharr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dispatcharr
+      component: celery
+  template:
+    metadata:
+      labels:
+        app: dispatcharr
+        component: celery
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command: ["sh", "-c", "until nc -z dispatcharr-postgresql 5432; do echo waiting for postgres; sleep 2; done"]
+        - name: wait-for-redis
+          image: busybox:1.36
+          command: ["sh", "-c", "until nc -z dispatcharr-redis-master 6379; do echo waiting for redis; sleep 2; done"]
+      containers:
+        - name: celery
+          image: ghcr.io/dispatcharr/dispatcharr:0.22.0
+          command: ["/app/docker/entrypoint.celery.sh"]
+          env:
+            - name: DISPATCHARR_ENV
+              value: "modular"
+            - name: DISPATCHARR_PORT
+              value: "9191"
+            - name: POSTGRES_HOST
+              value: "dispatcharr-postgresql"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: "dispatcharr"
+            - name: POSTGRES_USER
+              value: "dispatcharr"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dispatcharr-postgres-secret
+                  key: postgres-password
+            - name: REDIS_HOST
+              value: "dispatcharr-redis-master"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_DB
+              value: "0"
+            - name: DJANGO_SETTINGS_MODULE
+              value: "dispatcharr.settings"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dispatcharr-app-secret
+                  key: secret-key
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            limits:
+              memory: 256Mi
+              cpu: 300m
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: dispatcharr-data
+        - name: tmp
+          emptyDir: {}

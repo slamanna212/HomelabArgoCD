@@ -1,0 +1,24 @@
+nameOverride: "postgresql"
+fullnameOverride: "dispatcharr-postgresql"
+
+auth:
+  database: dispatcharr
+  username: dispatcharr
+  existingSecret: dispatcharr-postgres-secret
+  secretKeys:
+    userPasswordKey: postgres-password
+    adminPasswordKey: postgres-password
+
+primary:
+  persistence:
+    enabled: true
+    storageClass: longhorn-nvme
+    size: 5Gi
+
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m

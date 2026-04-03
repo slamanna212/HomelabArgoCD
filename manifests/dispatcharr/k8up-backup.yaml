@@ -1,0 +1,55 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: b2-credentials
+  namespace: dispatcharr
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: azure-keyvault
+    kind: ClusterSecretStore
+  target:
+    name: b2-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: keyId
+      remoteRef:
+        key: b2-key-id
+    - secretKey: appKey
+      remoteRef:
+        key: b2-app-key
+    - secretKey: resticPassword
+      remoteRef:
+        key: b2-restic-password
+---
+apiVersion: k8up.io/v1
+kind: Schedule
+metadata:
+  name: dispatcharr-backup
+  namespace: dispatcharr
+spec:
+  backend:
+    repoPasswordSecretRef:
+      name: b2-credentials
+      key: resticPassword
+    s3:
+      endpoint: <FILL_IN_B2_ENDPOINT>
+      bucket: <FILL_IN_B2_BUCKET>/dispatcharr
+      accessKeyIDSecretRef:
+        name: b2-credentials
+        key: keyId
+      secretAccessKeySecretRef:
+        name: b2-credentials
+        key: appKey
+  backup:
+    schedule: "0 2 * * *"
+    keepJobs: 3
+  check:
+    schedule: "0 3 * * 0"
+    keepJobs: 1
+  prune:
+    schedule: "0 4 * * 0"
+    keepJobs: 1
+  retention:
+    keepLast: 7
+    keepWeekly: 4

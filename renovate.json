@@ -18,6 +18,12 @@
       "description": "Group all GitHub Actions runner updates together",
       "matchPackageNames": ["gha-runner-scale-set", "gha-runner-scale-set-controller"],
       "groupName": "arc runners"
+    },
+    {
+      "description": "Group dispatcharr bitnami dependency updates together",
+      "matchPackageNames": ["postgresql", "redis"],
+      "matchRegistryUrls": ["https://registry-1.docker.io"],
+      "groupName": "dispatcharr dependencies"
     }
   ]
 }
