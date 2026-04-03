@@ -10,7 +10,7 @@ spec:
   sources:
     - repoURL: registry-1.docker.io/bitnamicharts
       chart: redis
-      targetRevision: "20.11.4"
+      targetRevision: "20.13.4"
       helm:
         valueFiles:
           - $values/values/dispatcharr-redis.yaml
