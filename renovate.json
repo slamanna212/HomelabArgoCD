@@ -8,7 +8,24 @@
   "argocd": {
     "managerFilePatterns": ["/^apps/.+\\.yaml$/"]
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track dispatcharr image tag in workload manifests",
+      "managerFilePatterns": ["/^workloads/.+\\.yaml$/"],
+      "matchStrings": ["image: ghcr\\.io/dispatcharr/dispatcharr:(?<currentValue>[^\\s]+)"],
+      "depNameTemplate": "dispatcharr/dispatcharr",
+      "registryUrlTemplate": "https://ghcr.io",
+      "datasourceTemplate": "docker"
+    }
+  ],
   "packageRules": [
+    {
+      "description": "Only track stable semver releases for dispatcharr",
+      "matchPackageNames": ["dispatcharr/dispatcharr"],
+      "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/",
+      "ignoreUnstable": true
+    },
     {
       "description": "Group all monitoring stack updates together",
       "matchPackageNames": ["kube-prometheus-stack", "loki", "promtail"],
@@ -18,12 +35,6 @@
       "description": "Group all GitHub Actions runner updates together",
       "matchPackageNames": ["gha-runner-scale-set", "gha-runner-scale-set-controller"],
       "groupName": "arc runners"
-    },
-    {
-      "description": "Group dispatcharr bitnami dependency updates together",
-      "matchPackageNames": ["postgresql", "redis"],
-      "matchRegistryUrls": ["https://registry-1.docker.io"],
-      "groupName": "dispatcharr dependencies"
     }
   ]
 }
