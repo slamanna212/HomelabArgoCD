@@ -54,6 +54,8 @@ spec:
               value: "dispatcharr.settings"
             - name: PYTHONUNBUFFERED
               value: "1"
+            - name: DISPATCHARR_LOG_LEVEL
+              value: "debug"
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
