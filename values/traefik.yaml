@@ -81,6 +81,10 @@ ports:
       apps: true
     protocol: TCP
 
+logs:
+  access:
+    enabled: true
+
 metrics:
   prometheus:
     addServicesLabels: true

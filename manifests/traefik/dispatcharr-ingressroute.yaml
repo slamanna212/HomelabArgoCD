@@ -25,5 +25,3 @@ spec:
           namespace: dispatcharr
           port: 9191
           serversTransport: dispatcharr-streaming
-          responseForwarding:
-            flushInterval: -1ms
