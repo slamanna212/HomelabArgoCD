@@ -39,8 +39,10 @@ manifests/       # Raw K8s manifests (IngressRoutes, etc.), organized by subdire
 **Cluster topology:** 3 control-plane + 4 worker nodes
 
 **Storage classes:**
-- Default (no storageClassName) — Fast NVMe-backed storage; omit `storageClassName` to use it
+- `longhorn` — General purpose storage; use this as the default for most workloads
+- `longhorn-nvme` — Requires `nvme` disk tag on nodes (not currently configured); do not use
 - `longhorn-sata` — Bulk SATA-backed storage for non-latency-sensitive data
+- `longhorn-static` — For manually provisioned volumes
 
 ## Deployed Applications
 

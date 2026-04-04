@@ -12,6 +12,7 @@ auth:
 primary:
   persistence:
     enabled: true
+    storageClass: longhorn
     size: 5Gi
 
   resources:
