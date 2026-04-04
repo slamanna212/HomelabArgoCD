@@ -14,6 +14,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: dispatcharr
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /spec/refreshInterval
   syncPolicy:
     automated:
       prune: true
