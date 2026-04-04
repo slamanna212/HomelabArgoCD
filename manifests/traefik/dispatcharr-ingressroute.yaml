@@ -4,6 +4,7 @@ metadata:
   name: dispatcharr-streaming
   namespace: dispatcharr
 spec:
+  disableHTTP2: true
   forwardingTimeouts:
     responseHeaderTimeout: 0
     dialTimeout: 30s
