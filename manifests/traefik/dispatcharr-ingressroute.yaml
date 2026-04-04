@@ -1,17 +1,5 @@
 apiVersion: traefik.io/v1alpha1
-kind: ServersTransport
-metadata:
-  name: dispatcharr-streaming
-  namespace: dispatcharr
-spec:
-  disableHTTP2: true
-  forwardingTimeouts:
-    responseHeaderTimeout: 0
-    dialTimeout: 30s
-    readIdleTimeout: 0
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
+kind: IngressRouteTCP
 metadata:
   name: dispatcharr-ui
   namespace: traefik
@@ -19,10 +7,8 @@ spec:
   entryPoints:
     - dispatcharr
   routes:
-    - match: PathPrefix(`/`)
-      kind: Rule
+    - match: HostSNI(`*`)
       services:
         - name: dispatcharr
           namespace: dispatcharr
           port: 9191
-          serversTransport: dispatcharr-dispatcharr-streaming@kubernetescrd
