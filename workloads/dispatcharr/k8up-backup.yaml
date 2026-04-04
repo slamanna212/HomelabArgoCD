@@ -16,12 +16,21 @@ spec:
     - secretKey: keyId
       remoteRef:
         key: b2-key-id
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None
     - secretKey: appKey
       remoteRef:
         key: b2-app-key
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None
     - secretKey: resticPassword
       remoteRef:
         key: b2-restic-password
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None
 ---
 apiVersion: k8up.io/v1
 kind: Schedule
