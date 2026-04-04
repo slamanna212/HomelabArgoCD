@@ -11,6 +11,7 @@ spec:
   target:
     name: b2-credentials
     creationPolicy: Owner
+    deletionPolicy: Retain
   data:
     - secretKey: keyId
       remoteRef:
