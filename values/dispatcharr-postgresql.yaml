@@ -12,7 +12,6 @@ auth:
 primary:
   persistence:
     enabled: true
-    storageClass: longhorn-nvme
     size: 5Gi
 
   resources:
