@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dispatcharr-postgresql
+  namespace: dispatcharr
+spec:
+  serviceName: dispatcharr-postgresql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dispatcharr
+      component: postgresql
+  template:
+    metadata:
+      labels:
+        app: dispatcharr
+        component: postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: dispatcharr
+            - name: POSTGRES_USER
+              value: dispatcharr
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dispatcharr-postgres-secret
+                  key: postgres-password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "dispatcharr", "-d", "dispatcharr"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dispatcharr-postgresql
+  namespace: dispatcharr
+spec:
+  selector:
+    app: dispatcharr
+    component: postgresql
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
