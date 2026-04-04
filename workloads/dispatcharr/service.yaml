@@ -3,12 +3,17 @@ kind: Service
 metadata:
   name: dispatcharr
   namespace: dispatcharr
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 10.1.20.202
 spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
   selector:
     app: dispatcharr
     component: web
   ports:
     - name: http
+      appProtocol: kubernetes.io/ws
       port: 9191
       targetPort: 9191
       protocol: TCP

@@ -15,8 +15,6 @@ service:
   additionalServices:
     monitoring:
       type: LoadBalancer
-    apps:
-      type: LoadBalancer
 
 api:
   dashboard: true
@@ -71,20 +69,6 @@ ports:
       default: false
       monitoring: true
     protocol: TCP
-  # App entrypoints
-  dispatcharr:
-    port: 9191
-    exposedPort: 9191
-    expose:
-      default: false
-      monitoring: false
-      apps: true
-    protocol: TCP
-    transport:
-      respondingTimeouts:
-        readTimeout: 0
-        writeTimeout: 0
-        idleTimeout: 0
 
 logs:
   access:
