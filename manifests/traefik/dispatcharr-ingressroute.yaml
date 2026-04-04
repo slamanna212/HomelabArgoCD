@@ -25,4 +25,4 @@ spec:
         - name: dispatcharr
           namespace: dispatcharr
           port: 9191
-          serversTransport: dispatcharr-streaming
+          serversTransport: dispatcharr-dispatcharr-streaming@kubernetescrd
