@@ -2,7 +2,7 @@ apiVersion: traefik.io/v1alpha1
 kind: ServersTransport
 metadata:
   name: dispatcharr-streaming
-  namespace: traefik
+  namespace: dispatcharr
 spec:
   forwardingTimeouts:
     responseHeaderTimeout: 0
