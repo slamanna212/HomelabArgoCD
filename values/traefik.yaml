@@ -80,6 +80,9 @@ ports:
       monitoring: false
       apps: true
     protocol: TCP
+    transport:
+      respondingTimeouts:
+        readTimeout: 0
 
 logs:
   access:
