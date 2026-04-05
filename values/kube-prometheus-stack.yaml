@@ -40,7 +40,6 @@ grafana:
     fsGroup: 472
   deploymentStrategy:
     type: Recreate
-    rollingUpdate: null
   persistence:
     enabled: true
     storageClassName: longhorn-sata

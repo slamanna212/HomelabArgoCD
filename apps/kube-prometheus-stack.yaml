@@ -20,6 +20,11 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+  ignoreDifferences:
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
+      jqPathExpressions:
+        - .spec.endpoints[].relabelings[].action
   syncPolicy:
     automated:
       prune: true
