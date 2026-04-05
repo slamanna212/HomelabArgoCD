@@ -47,28 +47,6 @@ grafana:
   sidecar:
     dashboards:
       searchNamespace: ALL
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: default
-          orgId: 1
-          folder: ""
-          type: file
-          disableDeletion: false
-          editable: true
-          options:
-            path: /var/lib/grafana/dashboards/default
-  dashboards:
-    default:
-      kubernetes-views-nodes:
-        gnetId: 15760
-        revision: 1
-        datasource: Prometheus
-      kube-state-metrics-v2:
-        gnetId: 13332
-        revision: 1
-        datasource: Prometheus
   additionalDataSources:
     - name: Loki
       type: loki
