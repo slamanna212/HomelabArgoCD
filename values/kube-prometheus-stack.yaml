@@ -80,6 +80,11 @@ kubeStateMetrics:
 
 kube-state-metrics:
   replicas: 2
+  prometheus:
+    monitor:
+      relabelings:
+        - targetLabel: cluster
+          replacement: homelab
 
 # -- Cilium-aware settings --
 kubeProxy:
