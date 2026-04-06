@@ -1098,6 +1098,8 @@ data:
               },
               "decimals": 0,
               "mappings": [],
+              "max": 2,
+              "min": 0,
               "noValue": "No Streams",
               "thresholds": {
                 "mode": "absolute",
@@ -1370,20 +1372,7 @@ data:
               },
               "mappings": []
             },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byType",
-                  "options": "number"
-                },
-                "properties": [
-                  {
-                    "id": "displayName",
-                    "value": "Streams"
-                  }
-                ]
-              }
-            ]
+            "overrides": []
           },
           "gridPos": {
             "h": 8,
