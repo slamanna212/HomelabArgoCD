@@ -1141,7 +1141,11 @@ data:
               "values": false
             },
             "showThresholdLabels": false,
-            "showThresholdMarkers": true
+            "showThresholdMarkers": true,
+            "text": {
+              "titleSize": 14,
+              "valueSize": 22
+            }
           },
           "pluginVersion": "12.3.3",
           "targets": [
