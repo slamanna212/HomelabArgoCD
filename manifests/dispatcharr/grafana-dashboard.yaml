@@ -63,7 +63,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 45
+            "y": 37
           },
           "id": 9,
           "panels": [],
@@ -102,7 +102,7 @@ data:
             "h": 4,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 38
           },
           "id": 7,
           "options": {
@@ -194,7 +194,7 @@ data:
             "h": 4,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 38
           },
           "id": 8,
           "options": {
@@ -1316,6 +1316,19 @@ data:
               "legendFormat": "{{account_name}}",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(dispatcharr_profile_connections)",
+              "instant": false,
+              "legendFormat": "Total",
+              "range": true,
+              "refId": "B"
             }
           ],
           "title": "Connections",
@@ -1913,10 +1926,10 @@ data:
             ]
           },
           "gridPos": {
-            "h": 8,
+            "h": 7,
             "w": 6,
             "x": 18,
-            "y": 37
+            "y": 30
           },
           "id": 204,
           "options": {
@@ -2067,7 +2080,7 @@ data:
           },
           "gridPos": {
             "h": 7,
-            "w": 7,
+            "w": 6,
             "x": 6,
             "y": 30
           },
@@ -2141,8 +2154,8 @@ data:
           },
           "gridPos": {
             "h": 7,
-            "w": 11,
-            "x": 13,
+            "w": 6,
+            "x": 12,
             "y": 30
           },
           "id": 207,
