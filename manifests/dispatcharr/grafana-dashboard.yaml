@@ -1098,8 +1098,7 @@ data:
               },
               "decimals": 0,
               "mappings": [],
-              "max": 1,
-              "min": 0,
+              "noValue": "No Streams",
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -1109,15 +1108,15 @@ data:
                   },
                   {
                     "color": "orange",
-                    "value": 0.8
+                    "value": 1
                   },
                   {
                     "color": "red",
-                    "value": 1
+                    "value": 2
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "short"
             },
             "overrides": []
           },
@@ -1147,7 +1146,7 @@ data:
             {
               "editorMode": "code",
               "exemplar": false,
-              "expr": "(\n  count by(provider) (dispatcharr_stream_metadata)\n  or\n  sum by(provider) (\n    label_replace(\n      dispatcharr_profile_max_connections > 0,\n      \"provider\", \"$1\", \"account_name\", \"(.*)\"\n    )\n  ) * 0\n)\n/ on(provider) group_left(profile_name)\nlabel_replace(\n  dispatcharr_profile_max_connections > 0,\n  \"provider\", \"$1\", \"account_name\", \"(.*)\"\n)",
+              "expr": "count by(provider) (dispatcharr_stream_metadata)\nand on(provider)\nsum by(provider) (\n  label_replace(\n    dispatcharr_profile_max_connections > 0,\n    \"provider\", \"$1\", \"account_name\", \"(.*)\"\n  )\n)",
               "instant": true,
               "legendFormat": "{{provider}}",
               "range": false,
@@ -1371,7 +1370,20 @@ data:
               },
               "mappings": []
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byType",
+                  "options": "number"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "Streams"
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 8,
@@ -1381,9 +1393,9 @@ data:
           },
           "id": 11,
           "options": {
-            "displayLabels": ["percent"],
+            "displayLabels": [],
             "legend": {
-              "displayMode": "list",
+              "displayMode": "table",
               "placement": "right",
               "showLegend": true,
               "values": ["value", "percent"]
