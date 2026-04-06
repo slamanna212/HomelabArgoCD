@@ -63,7 +63,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 0
+            "y": 31
           },
           "id": 9,
           "panels": [],
@@ -102,7 +102,7 @@ data:
             "h": 4,
             "w": 12,
             "x": 0,
-            "y": 1
+            "y": 32
           },
           "id": 7,
           "options": {
@@ -194,7 +194,7 @@ data:
             "h": 4,
             "w": 12,
             "x": 12,
-            "y": 1
+            "y": 32
           },
           "id": 8,
           "options": {
@@ -260,7 +260,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 5
+            "y": 0
           },
           "id": 6,
           "panels": [],
@@ -533,7 +533,7 @@ data:
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 6
+            "y": 1
           },
           "id": 1,
           "options": {
@@ -913,7 +913,7 @@ data:
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 13
+            "y": 8
           },
           "id": 104,
           "options": {
@@ -995,10 +995,14 @@ data:
                   "channel_name": true,
                   "channel_uuid": true,
                   "client_id": true,
+                  "endpoint": true,
                   "group": true,
                   "instance": true,
                   "job": true,
+                  "namespace": true,
+                  "pod": true,
                   "process": true,
+                  "service": true,
                   "profile_id": true,
                   "profile_name": false,
                   "provider": false,
@@ -1075,7 +1079,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 20
+            "y": 15
           },
           "id": 5,
           "panels": [],
@@ -1130,7 +1134,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 21
+            "y": 16
           },
           "id": 2,
           "options": {
@@ -1229,7 +1233,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 21
+            "y": 16
           },
           "id": 3,
           "options": {
@@ -1306,7 +1310,7 @@ data:
             "h": 3,
             "w": 24,
             "x": 0,
-            "y": 29
+            "y": 24
           },
           "id": 12,
           "options": {
@@ -1426,7 +1430,7 @@ data:
             "h": 4,
             "w": 24,
             "x": 0,
-            "y": 32
+            "y": 27
           },
           "id": 11,
           "options": {
