@@ -63,7 +63,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 48
+            "y": 45
           },
           "id": 9,
           "panels": [],
@@ -102,7 +102,7 @@ data:
             "h": 4,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 46
           },
           "id": 7,
           "options": {
@@ -194,7 +194,7 @@ data:
             "h": 4,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 46
           },
           "id": 8,
           "options": {
@@ -1859,6 +1859,19 @@ data:
           "type": "table"
         },
         {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 29
+          },
+          "id": 208,
+          "panels": [],
+          "title": "Stats",
+          "type": "row"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1903,7 +1916,7 @@ data:
             "h": 8,
             "w": 6,
             "x": 18,
-            "y": 29
+            "y": 37
           },
           "id": 204,
           "options": {
@@ -1995,7 +2008,7 @@ data:
             "h": 7,
             "w": 6,
             "x": 0,
-            "y": 37
+            "y": 30
           },
           "id": 205,
           "options": {
@@ -2056,7 +2069,7 @@ data:
             "h": 7,
             "w": 7,
             "x": 6,
-            "y": 37
+            "y": 30
           },
           "id": 206,
           "options": {
@@ -2130,7 +2143,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 37
+            "y": 30
           },
           "id": 207,
           "options": {
