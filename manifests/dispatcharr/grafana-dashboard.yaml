@@ -494,6 +494,18 @@ data:
               {
                 "matcher": {
                   "id": "byName",
+                  "options": "Name"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 150
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
                   "options": "Program"
                 },
                 "properties": [
@@ -535,7 +547,7 @@ data:
             {
               "editorMode": "code",
               "exemplar": false,
-              "expr": "label_join(\n  (time() - dispatcharr_stream_uptime_seconds)\n  * on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n      dispatcharr_stream_metadata,\n  \"provider_full\",\n  \" \",\n  \"provider\",\n  \"profile_name\"\n)",
+              "expr": "label_join(\n  dispatcharr_stream_uptime_seconds\n  * on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n      dispatcharr_stream_metadata,\n  \"provider_full\",\n  \" \",\n  \"provider\",\n  \"profile_name\"\n)",
               "format": "table",
               "instant": true,
               "range": false,
