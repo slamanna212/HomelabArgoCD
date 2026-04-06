@@ -1094,10 +1094,9 @@ data:
           "fieldConfig": {
             "defaults": {
               "color": {
-                "mode": "continuous-GrYlRd"
+                "mode": "thresholds"
               },
               "decimals": 0,
-              "fieldMinMax": false,
               "mappings": [],
               "max": 1,
               "min": 0,
@@ -1105,51 +1104,34 @@ data:
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
+                    "color": "semi-dark-blue",
                     "value": 0
+                  },
+                  {
+                    "color": "orange",
+                    "value": 0.8
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
                   }
                 ]
               },
               "unit": "percentunit"
             },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Total"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "semi-dark-blue",
-                      "mode": "shades"
-                    }
-                  }
-                ]
-              }
-            ]
+            "overrides": []
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 8,
             "x": 0,
             "y": 9
           },
           "id": 2,
           "options": {
-            "displayMode": "basic",
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
-            },
-            "maxVizHeight": 300,
-            "minVizHeight": 16,
-            "minVizWidth": 8,
-            "namePlacement": "auto",
-            "orientation": "horizontal",
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
             "reduceOptions": {
               "calcs": [
                 "lastNotNull"
@@ -1157,32 +1139,17 @@ data:
               "fields": "",
               "values": false
             },
-            "showUnfilled": true,
-            "sizing": "auto",
-            "valueMode": "color"
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
           },
           "pluginVersion": "12.3.3",
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(count by(provider) (dispatcharr_stream_metadata))\n/\nsum(\n  dispatcharr_profile_max_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)",
-              "hide": false,
+              "expr": "count by(provider) (dispatcharr_stream_metadata)\n/ on(provider) group_left(profile_name)\nlabel_replace(\n  dispatcharr_profile_max_connections > 0,\n  \"provider\", \"$1\", \"account_name\", \"(.*)\"\n)",
               "instant": true,
-              "legendFormat": "Total",
-              "range": false,
-              "refId": "B"
-            },
-            {
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "count by(provider) (dispatcharr_stream_metadata)\n/ on(provider) group_left(profile_name)\nlabel_replace(dispatcharr_profile_max_connections, \"provider\", \"$1\", \"account_name\", \"(.*)\")",
-              "instant": true,
-              "legendFormat": "{{provider}} {{profile_name}}",
+              "legendFormat": "{{provider}}",
               "range": false,
               "refId": "A",
               "datasource": {
@@ -1192,7 +1159,7 @@ data:
             }
           ],
           "title": "Usage",
-          "type": "bargauge"
+          "type": "gauge"
         },
         {
           "datasource": {
@@ -1231,8 +1198,8 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
-            "x": 12,
+            "w": 8,
+            "x": 8,
             "y": 9
           },
           "id": 3,
@@ -1333,19 +1300,6 @@ data:
           "pluginVersion": "12.3.3",
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "expr": "dispatcharr_active_streams",
-              "hide": false,
-              "instant": false,
-              "legendFormat": "Active Streams",
-              "range": true,
-              "refId": "B"
-            },
-            {
               "editorMode": "code",
               "expr": "dispatcharr_active_clients",
               "legendFormat": "Active Clients",
@@ -1408,47 +1362,37 @@ data:
               "color": {
                 "mode": "palette-classic"
               },
-              "fieldMinMax": false,
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              "mappings": []
             },
             "overrides": []
           },
           "gridPos": {
-            "h": 4,
-            "w": 24,
-            "x": 0,
-            "y": 20
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 9
           },
           "id": 11,
           "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
+            "displayLabels": ["percent"],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right",
+              "showLegend": true,
+              "values": ["value", "percent"]
             },
-            "showPercentChange": true,
-            "textMode": "auto",
-            "wideLayout": true
+            "pieType": "pie",
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
           },
           "pluginVersion": "12.3.3",
           "targets": [
@@ -1456,9 +1400,9 @@ data:
               "editorMode": "code",
               "exemplar": false,
               "expr": "dispatcharr_m3u_account_stream_count{status=\"success\"}",
-              "instant": false,
+              "instant": true,
               "legendFormat": "{{account_name}}",
-              "range": true,
+              "range": false,
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -1467,7 +1411,7 @@ data:
             }
           ],
           "title": "Incoming Streams",
-          "type": "stat"
+          "type": "piechart"
         }
       ],
       "preload": true,
