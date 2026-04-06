@@ -63,7 +63,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 24
+            "y": 40
           },
           "id": 9,
           "panels": [],
@@ -102,7 +102,7 @@ data:
             "h": 4,
             "w": 12,
             "x": 0,
-            "y": 25
+            "y": 41
           },
           "id": 7,
           "options": {
@@ -194,7 +194,7 @@ data:
             "h": 4,
             "w": 12,
             "x": 12,
-            "y": 25
+            "y": 41
           },
           "id": 8,
           "options": {
@@ -526,6 +526,72 @@ data:
                     "value": 100
                   }
                 ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Bitrate"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "bps"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 90
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Buffer"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "short"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 80
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "red",
+                          "value": 0
+                        },
+                        {
+                          "color": "yellow",
+                          "value": 0.8
+                        },
+                        {
+                          "color": "green",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  }
+                ]
               }
             ]
           },
@@ -570,6 +636,34 @@ data:
               "instant": true,
               "range": false,
               "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "dispatcharr_stream_current_bitrate_bps\n* on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n    dispatcharr_stream_metadata",
+              "format": "table",
+              "hide": false,
+              "instant": true,
+              "range": false,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "dispatcharr_stream_buffering_speed\n* on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n    dispatcharr_stream_metadata",
+              "format": "table",
+              "hide": false,
+              "instant": true,
+              "range": false,
+              "refId": "D"
             }
           ],
           "title": "Streams",
@@ -591,6 +685,8 @@ data:
                   "Time": true,
                   "Value #A": false,
                   "Value #B": true,
+                  "Value #C": false,
+                  "Value #D": false,
                   "__name__": true,
                   "channel_group": true,
                   "channel_name": false,
@@ -670,6 +766,8 @@ data:
                 "renameByName": {
                   "Value": "Uptime",
                   "Value #A": "Uptime",
+                  "Value #C": "Bitrate",
+                  "Value #D": "Buffer",
                   "channel_name": "Name",
                   "channel_number": "Channel",
                   "current_title": "Title",
@@ -1112,33 +1210,17 @@ data:
               },
               "unit": "percentunit"
             },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Total"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "semi-dark-blue",
-                      "mode": "shades"
-                    }
-                  }
-                ]
-              }
-            ]
+            "overrides": []
           },
           "gridPos": {
             "h": 8,
-            "w": 8,
+            "w": 5,
             "x": 0,
             "y": 9
           },
           "id": 2,
           "options": {
-            "displayMode": "basic",
+            "displayMode": "lcd",
             "legend": {
               "calcs": [],
               "displayMode": "list",
@@ -1170,21 +1252,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(\n  dispatcharr_profile_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)\n/\nsum(\n  dispatcharr_profile_max_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)",
-              "hide": false,
-              "instant": true,
-              "legendFormat": "Total",
-              "range": false,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "dispatcharr_profile_connection_usage\n  unless on(profile_id, profile_name, account_name)\n  (dispatcharr_profile_days_to_expiry == 0)",
+              "expr": "dispatcharr_profile_connection_usage\n  unless on(profile_id, profile_name, account_name)\n  (dispatcharr_profile_max_connections == 0)",
               "instant": true,
               "legendFormat": "{{account_name}} {{profile_name}}",
               "range": false,
@@ -1193,6 +1261,65 @@ data:
           ],
           "title": "Usage",
           "type": "bargauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "spanNulls": false
+              },
+              "decimals": 0,
+              "min": 0,
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 5,
+            "y": 9
+          },
+          "id": 200,
+          "options": {
+            "legend": {
+              "calcs": ["lastNotNull"],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "dispatcharr_profile_connections",
+              "instant": false,
+              "legendFormat": "{{account_name}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Connections",
+          "type": "timeseries"
         },
         {
           "datasource": {
@@ -1231,8 +1358,8 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 8,
-            "x": 8,
+            "w": 6,
+            "x": 13,
             "y": 9
           },
           "id": 3,
@@ -1408,8 +1535,8 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 8,
-            "x": 16,
+            "w": 5,
+            "x": 19,
             "y": 9
           },
           "id": 11,
@@ -1445,6 +1572,609 @@ data:
           ],
           "title": "Incoming Streams",
           "type": "piechart"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 20
+          },
+          "id": 201,
+          "panels": [],
+          "title": "Sources & Details",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "center",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": false,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Status"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "options": {
+                          "success": { "color": "green", "index": 0 },
+                          "error": { "color": "red", "index": 1 },
+                          "idle": { "color": "blue", "index": 2 },
+                          "fetching": { "color": "yellow", "index": 3 },
+                          "parsing": { "color": "yellow", "index": 4 },
+                          "disabled": { "color": "gray", "index": 5 }
+                        },
+                        "type": "value"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": { "type": "color-background" }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Streams"
+                },
+                "properties": [
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 0,
+            "y": 21
+          },
+          "id": 202,
+          "options": {
+            "cellHeight": "sm",
+            "enablePagination": false,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "dispatcharr_m3u_account_stream_count\n* on(account_id, account_name) group_left(account_type, is_active, status)\n  dispatcharr_m3u_account_info",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "M3U Accounts",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": { "mode": "columns" }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "endpoint": true,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "account_name": 0,
+                  "account_type": 1,
+                  "status": 2,
+                  "is_active": 3,
+                  "Value": 4
+                },
+                "renameByName": {
+                  "account_name": "Account",
+                  "account_type": "Type",
+                  "status": "Status",
+                  "is_active": "Active",
+                  "Value": "Streams"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "center",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": false,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Status"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "options": {
+                          "success": { "color": "green", "index": 0 },
+                          "error": { "color": "red", "index": 1 },
+                          "idle": { "color": "blue", "index": 2 },
+                          "fetching": { "color": "yellow", "index": 3 },
+                          "parsing": { "color": "yellow", "index": 4 },
+                          "disabled": { "color": "gray", "index": 5 }
+                        },
+                        "type": "value"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": { "type": "color-background" }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 10,
+            "y": 21
+          },
+          "id": 203,
+          "options": {
+            "cellHeight": "sm",
+            "enablePagination": false,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "dispatcharr_epg_source_priority",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "EPG Sources",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": { "mode": "columns" }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "endpoint": true,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "source_name": 0,
+                  "source_type": 1,
+                  "status": 2,
+                  "is_active": 3,
+                  "Value": 4
+                },
+                "renameByName": {
+                  "source_name": "Source",
+                  "source_type": "Type",
+                  "status": "Status",
+                  "is_active": "Active",
+                  "Value": "Priority"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "center",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": false,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Streams"
+                },
+                "properties": [
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 21
+          },
+          "id": 204,
+          "options": {
+            "cellHeight": "sm",
+            "enablePagination": false,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "dispatcharr_user_active_streams\n* on(user_id) group_left(username, user_level, is_staff)\n  dispatcharr_user_info",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "User Activity",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": { "mode": "columns" }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "endpoint": true,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true,
+                  "user_id": true,
+                  "is_staff": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "username": 0,
+                  "user_level": 1,
+                  "Value": 2
+                },
+                "renameByName": {
+                  "username": "User",
+                  "user_level": "Level",
+                  "Value": "Streams"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 0,
+            "y": 29
+          },
+          "id": 205,
+          "options": {
+            "displayLabels": [],
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "values": ["value", "percent"]
+            },
+            "pieType": "donut",
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "count by(video_codec) (dispatcharr_stream_metadata)",
+              "instant": true,
+              "legendFormat": "{{video_codec}}",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Codec Distribution",
+          "type": "piechart"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 7,
+            "x": 6,
+            "y": 29
+          },
+          "id": 206,
+          "options": {
+            "displayLabels": [],
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "values": ["value", "percent"]
+            },
+            "pieType": "donut",
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "count by(stream_profile) (dispatcharr_stream_metadata)",
+              "instant": true,
+              "legendFormat": "{{stream_profile}}",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Stream Profiles",
+          "type": "piechart"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "continuous-GrYlRd"
+              },
+              "decimals": 0,
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": 0
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 1
+                  },
+                  {
+                    "color": "green",
+                    "value": 2
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 11,
+            "x": 13,
+            "y": 29
+          },
+          "id": 207,
+          "options": {
+            "displayMode": "basic",
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "maxVizHeight": 300,
+            "minVizHeight": 16,
+            "minVizWidth": 8,
+            "namePlacement": "auto",
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showUnfilled": true,
+            "sizing": "auto",
+            "valueMode": "color"
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "dispatcharr_stream_available_streams\n* on(channel_uuid, channel_number) group_left(channel_name)\n  dispatcharr_stream_metadata",
+              "instant": true,
+              "legendFormat": "{{channel_name}}",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Available Fallback Slots",
+          "type": "bargauge"
         }
       ],
       "preload": true,
