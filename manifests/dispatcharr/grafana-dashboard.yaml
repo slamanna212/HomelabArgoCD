@@ -1132,7 +1132,7 @@ data:
           "options": {
             "minVizHeight": 75,
             "minVizWidth": 75,
-            "orientation": "auto",
+            "orientation": "horizontal",
             "reduceOptions": {
               "calcs": [
                 "lastNotNull"
