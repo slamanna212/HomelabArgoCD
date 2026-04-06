@@ -396,17 +396,33 @@ data:
                             "color": "#55a64b80",
                             "index": 0
                           },
+                          "0": {
+                            "color": "#55a64b80",
+                            "index": 4
+                          },
                           "buffering": {
                             "color": "#ff780a80",
                             "index": 1
+                          },
+                          "1": {
+                            "color": "#ff780a80",
+                            "index": 5
                           },
                           "error": {
                             "color": "#e02f4480",
                             "index": 3
                           },
+                          "3": {
+                            "color": "#e02f4480",
+                            "index": 7
+                          },
                           "waiting_for_clients": {
                             "color": "#1f61c480",
                             "index": 2
+                          },
+                          "2": {
+                            "color": "#1f61c480",
+                            "index": 6
                           }
                         },
                         "type": "value"
@@ -822,17 +838,33 @@ data:
                             "color": "#55a64b52",
                             "index": 0
                           },
+                          "0": {
+                            "color": "#55a64b52",
+                            "index": 4
+                          },
                           "buffering": {
                             "color": "#ff780a52",
                             "index": 1
+                          },
+                          "1": {
+                            "color": "#ff780a52",
+                            "index": 5
                           },
                           "error": {
                             "color": "#e02f4452",
                             "index": 3
                           },
+                          "3": {
+                            "color": "#e02f4452",
+                            "index": 7
+                          },
                           "waiting_for_clients": {
                             "color": "#1f61c452",
                             "index": 2
+                          },
+                          "2": {
+                            "color": "#1f61c452",
+                            "index": 6
                           }
                         },
                         "type": "value"
@@ -1162,7 +1194,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(\n  dispatcharr_profile_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)\n/\nsum(\n  dispatcharr_profile_max_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)",
+              "expr": "sum(count by(provider) (dispatcharr_stream_metadata))\n/\nsum(\n  dispatcharr_profile_max_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)",
               "hide": false,
               "instant": true,
               "legendFormat": "Total",
@@ -1172,9 +1204,9 @@ data:
             {
               "editorMode": "code",
               "exemplar": false,
-              "expr": "dispatcharr_profile_connection_usage\n  unless on(profile_id, profile_name, account_name)\n  (dispatcharr_profile_days_to_expiry == 0)",
+              "expr": "count by(provider) (dispatcharr_stream_metadata)\n/ on(provider) group_left(profile_name)\nlabel_replace(dispatcharr_profile_max_connections, \"provider\", \"$1\", \"account_name\", \"(.*)\")",
               "instant": true,
-              "legendFormat": "{{account_name}} {{profile_name}}",
+              "legendFormat": "{{provider}} {{profile_name}}",
               "range": false,
               "refId": "A",
               "datasource": {
