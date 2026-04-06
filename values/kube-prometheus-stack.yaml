@@ -85,6 +85,31 @@ kube-state-metrics:
         - targetLabel: cluster
           replacement: homelab
 
+# -- Kubelet scraping --
+kubelet:
+  serviceMonitor:
+    relabelings:
+      - action: replace
+        sourceLabels:
+          - __metrics_path__
+        targetLabel: metrics_path
+      - targetLabel: cluster
+        replacement: homelab
+    cAdvisorRelabelings:
+      - action: replace
+        sourceLabels:
+          - __metrics_path__
+        targetLabel: metrics_path
+      - targetLabel: cluster
+        replacement: homelab
+    probesRelabelings:
+      - action: replace
+        sourceLabels:
+          - __metrics_path__
+        targetLabel: metrics_path
+      - targetLabel: cluster
+        replacement: homelab
+
 # -- Cilium-aware settings --
 kubeProxy:
   enabled: false
