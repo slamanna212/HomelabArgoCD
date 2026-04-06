@@ -312,7 +312,7 @@ data:
                 "properties": [
                   {
                     "id": "custom.width",
-                    "value": 150
+                    "value": 75
                   },
                   {
                     "id": "decimals",
@@ -334,7 +334,7 @@ data:
                   },
                   {
                     "id": "custom.width",
-                    "value": 200
+                    "value": 120
                   },
                   {
                     "id": "custom.align",
@@ -494,49 +494,6 @@ data:
               {
                 "matcher": {
                   "id": "byName",
-                  "options": "Progress"
-                },
-                "properties": [
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "mode": "basic",
-                      "type": "gauge",
-                      "valueDisplayMode": "hidden"
-                    }
-                  },
-                  {
-                    "id": "unit",
-                    "value": "percentunit"
-                  },
-                  {
-                    "id": "decimals",
-                    "value": 0
-                  },
-                  {
-                    "id": "min",
-                    "value": 0
-                  },
-                  {
-                    "id": "max",
-                    "value": 1
-                  },
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "text",
-                      "mode": "fixed"
-                    }
-                  },
-                  {
-                    "id": "custom.width",
-                    "value": 75
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
                   "options": "Program"
                 },
                 "properties": [
@@ -570,7 +527,7 @@ data:
           "options": {
             "cellHeight": "lg",
             "enablePagination": false,
-            "showHeader": false,
+            "showHeader": true,
             "sortBy": []
           },
           "pluginVersion": "12.3.3",
@@ -648,7 +605,8 @@ data:
                   "profile_id": true,
                   "profile_name": true,
                   "program_title_full": false,
-                  "provider": true,
+                  "provider": false,
+                  "provider_full": true,
                   "provider_type": true,
                   "resolution": false,
                   "stream_id": true,
@@ -696,7 +654,6 @@ data:
                 "renameByName": {
                   "Value": "Uptime",
                   "Value #A": "Uptime",
-                  "Value #B": "Progress",
                   "channel_name": "Name",
                   "channel_number": "Channel",
                   "current_title": "Title",
@@ -704,7 +661,6 @@ data:
                   "profile_name": "Profile",
                   "program_title_full": "Program",
                   "provider": "Provider",
-                  "provider_full": "Provider",
                   "resolution": "Resolution",
                   "type": "Type"
                 }
@@ -948,7 +904,7 @@ data:
             "cellHeight": "sm",
             "enablePagination": false,
             "frameIndex": 1,
-            "showHeader": false,
+            "showHeader": true,
             "sortBy": []
           },
           "pluginVersion": "12.3.3",
