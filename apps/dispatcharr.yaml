@@ -22,7 +22,10 @@ spec:
     - group: external-secrets.io
       kind: ExternalSecret
       jsonPointers:
+        - /metadata/finalizers
         - /spec/refreshInterval
+      jqPathExpressions:
+        - .spec.data[].remoteRef.nullBytePolicy
   syncPolicy:
     automated:
       prune: true
