@@ -185,7 +185,6 @@ All apps should reach `Synced` / `Healthy` within a few minutes. Apps with Exter
 | `promtail`              | `monitoring`      | Helm      | Log shipping agent                                    |
 | `external-secrets`      | `external-secrets`| Helm      | Syncs secrets from Azure Key Vault                    |
 | `k8up`                  | `k8up`            | Helm      | Kubernetes backup operator                            |
-| `rancher`               | `cattle-system`   | Helm      | Cluster management UI                                 |
 | `arc-controller`        | `arc-system`      | Helm      | GitHub Actions Runner Controller                      |
 | `cloudflared`           | `cloudflared`     | Manifests | Cloudflare tunnel (3-replica, HA spread across nodes) |
 | `manifests`             | various           | Raw K8s   | IngressRoutes and supporting manifests                |
