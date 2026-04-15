@@ -1,0 +1,79 @@
+# Declaratively manage Longhorn per-node disk layout.
+# Added after Apr 2026 incident: an extra disk entry at /var/lib/longhorn-sata on
+# work03v conflicted by filesystem UUID ("DiskFilesystemChanged") and blocked
+# replica scheduling. GitOps-managing Node disks prevents UI drift from recurring.
+apiVersion: longhorn.io/v1beta2
+kind: Node
+metadata:
+  name: slama-read-k8work01v
+  namespace: longhorn-system
+spec:
+  allowScheduling: true
+  disks:
+    default-disk-f06a709529fa67fe:
+      path: /var/lib/longhorn
+      allowScheduling: true
+      storageReserved: 29586629836
+      tags: []
+    longhorn-sata:
+      path: /var/lib/longhorn-sata
+      allowScheduling: true
+      storageReserved: 10737418240
+      tags: ["sata"]
+---
+apiVersion: longhorn.io/v1beta2
+kind: Node
+metadata:
+  name: slama-read-k8work02v
+  namespace: longhorn-system
+spec:
+  allowScheduling: true
+  disks:
+    default-disk-569709a9a68b5179:
+      path: /var/lib/longhorn
+      allowScheduling: true
+      storageReserved: 29586629836
+      tags: []
+    longhorn-sata:
+      path: /var/lib/longhorn-sata
+      allowScheduling: true
+      storageReserved: 10737418240
+      tags: ["sata"]
+---
+apiVersion: longhorn.io/v1beta2
+kind: Node
+metadata:
+  name: slama-read-k8work03v
+  namespace: longhorn-system
+spec:
+  allowScheduling: true
+  disks:
+    default-disk:
+      path: /var/lib/longhorn
+      allowScheduling: true
+      storageReserved: 29581587251
+      tags: []
+    sata-disk:
+      path: /var/lib/longhorn-sata
+      allowScheduling: true
+      storageReserved: 10737418240
+      tags: ["sata"]
+---
+apiVersion: longhorn.io/v1beta2
+kind: Node
+metadata:
+  name: slama-read-k8work04v
+  namespace: longhorn-system
+spec:
+  allowScheduling: true
+  disks:
+    default-disk-74eb479e46641828:
+      path: /var/lib/longhorn
+      allowScheduling: true
+      storageReserved: 29586629836
+      tags: []
+    longhorn-sata:
+      path: /var/lib/longhorn-sata
+      allowScheduling: true
+      storageReserved: 10737418240
+      tags: ["sata"]
