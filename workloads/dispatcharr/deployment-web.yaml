@@ -27,7 +27,7 @@ spec:
           command: ["sh", "-c", "until nc -z dispatcharr-redis-master 6379; do echo waiting for redis; sleep 2; done"]
       containers:
         - name: dispatcharr
-          image: ghcr.io/dispatcharr/dispatcharr:0.22.1
+          image: ghcr.io/dispatcharr/dispatcharr:0.23.0
           ports:
             - containerPort: 9191
           env:
