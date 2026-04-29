@@ -18,6 +18,14 @@ spec:
         app: dispatcharr
         component: celery
     spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: dispatcharr
+                  component: web
+              topologyKey: kubernetes.io/hostname
       initContainers:
         - name: wait-for-postgres
           image: busybox:1.36
