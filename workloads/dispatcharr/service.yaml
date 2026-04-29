@@ -5,9 +5,10 @@ metadata:
   namespace: dispatcharr
   annotations:
     metallb.universe.tf/loadBalancerIPs: 10.1.20.202
+    kube-vip.io/ignore: "true"
 spec:
   type: LoadBalancer
-  externalTrafficPolicy: Cluster
+  externalTrafficPolicy: Local
   selector:
     app: dispatcharr
     component: web
