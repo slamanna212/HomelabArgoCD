@@ -1,0 +1,60 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: dispatcharr-alerts
+  namespace: dispatcharr
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: dispatcharr
+      rules:
+        - alert: DispatcharrDown
+          expr: absent(dispatcharr_info)
+          for: 5m
+          labels:
+            severity: critical
+            app: dispatcharr
+          annotations:
+            summary: "Dispatcharr is down"
+            description: "No dispatcharr_info metric received for 5 minutes. The app or exporter is not running."
+
+        - alert: DispatcharrProviderAccountError
+          expr: dispatcharr_m3u_account_status{status="error"} > 0
+          for: 5m
+          labels:
+            severity: critical
+            app: dispatcharr
+          annotations:
+            summary: "Dispatcharr M3U provider account error"
+            description: "{{ $value }} M3U account(s) are in error state. Streams from affected providers will fail."
+
+        - alert: DispatcharrStreamOnLastFallback
+          expr: dispatcharr_stream_index >= dispatcharr_stream_available_streams - 1
+          for: 2m
+          labels:
+            severity: critical
+            app: dispatcharr
+          annotations:
+            summary: "Dispatcharr stream on last fallback"
+            description: "Channel {{ $labels.channel_number }} is on its last backup stream (index {{ $value }}). The next failure will take the channel offline."
+
+        - alert: DispatcharrStreamOnFallback
+          expr: dispatcharr_stream_index > 0
+          for: 2m
+          labels:
+            severity: warning
+            app: dispatcharr
+          annotations:
+            summary: "Dispatcharr stream using fallback"
+            description: "Channel {{ $labels.channel_number }} has fallen back to stream index {{ $value }}. The primary stream is broken."
+
+        - alert: DispatcharrStreamBufferingBehind
+          expr: dispatcharr_stream_buffering_speed{type="live"} < 0.9
+          for: 3m
+          labels:
+            severity: warning
+            app: dispatcharr
+          annotations:
+            summary: "Dispatcharr stream buffering behind real-time"
+            description: "Channel {{ $labels.channel_number }} buffering speed is {{ $value | humanize }}x (below 0.9x). Viewers may experience playback issues."
