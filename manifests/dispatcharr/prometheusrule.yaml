@@ -30,7 +30,7 @@ spec:
             description: "{{ $value }} M3U account(s) are in error state. Streams from affected providers will fail."
 
         - alert: DispatcharrStreamOnLastFallback
-          expr: dispatcharr_stream_index >= dispatcharr_stream_available_streams - 1
+          expr: (dispatcharr_stream_index >= dispatcharr_stream_available_streams) and (dispatcharr_stream_available_streams > 1)
           for: 2m
           labels:
             severity: critical
@@ -40,7 +40,7 @@ spec:
             description: "Channel {{ $labels.channel_number }} is on its last backup stream (index {{ $value }}). The next failure will take the channel offline."
 
         - alert: DispatcharrStreamOnFallback
-          expr: dispatcharr_stream_index > 0
+          expr: dispatcharr_stream_index > 1
           for: 2m
           labels:
             severity: warning
