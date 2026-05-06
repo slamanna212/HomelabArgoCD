@@ -12,7 +12,7 @@ listenerTemplate:
       - name: listener
 
 minRunners: 1
-maxRunners: 10
+maxRunners: 5
 
 listenerMetrics:
   counters:
