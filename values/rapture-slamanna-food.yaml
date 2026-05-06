@@ -11,8 +11,8 @@ listenerTemplate:
     containers:
       - name: listener
 
-minRunners: 3
-maxRunners: 10
+minRunners: 1
+maxRunners: 5
 
 listenerMetrics:
   counters:

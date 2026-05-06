@@ -11,8 +11,8 @@ listenerTemplate:
     containers:
       - name: listener
 
-minRunners: 3
-maxRunners: 15
+minRunners: 2
+maxRunners: 10
 
 containerMode:
   type: "dind"
