@@ -34,7 +34,7 @@ spec:
       allowScheduling: true
       storageReserved: 29581587251
       tags: []
-    sata-disk:
+    longhorn-sata:
       path: /var/lib/longhorn-sata
       allowScheduling: true
       storageReserved: 10737418240
