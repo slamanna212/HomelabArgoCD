@@ -5,6 +5,25 @@
 apiVersion: longhorn.io/v1beta2
 kind: Node
 metadata:
+  name: slama-read-k8work01v
+  namespace: longhorn-system
+spec:
+  allowScheduling: true
+  disks:
+    default-disk-147f840f96f65d7f:
+      path: /var/lib/longhorn
+      allowScheduling: true
+      storageReserved: 44462050099
+      tags: []
+    longhorn-sata:
+      path: /var/lib/longhorn-sata
+      allowScheduling: true
+      storageReserved: 10737418240
+      tags: ["sata"]
+---
+apiVersion: longhorn.io/v1beta2
+kind: Node
+metadata:
   name: slama-read-k8work03v
   namespace: longhorn-system
 spec:
