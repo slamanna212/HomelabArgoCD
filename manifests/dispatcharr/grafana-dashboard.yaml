@@ -1317,19 +1317,6 @@ data:
               "range": true,
               "refId": "A"
             },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "sum(dispatcharr_profile_connections)",
-              "instant": false,
-              "legendFormat": "Total",
-              "range": true,
-              "refId": "B"
-            }
           ],
           "title": "Connections",
           "type": "timeseries"
