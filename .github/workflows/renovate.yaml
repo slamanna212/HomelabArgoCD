@@ -1,8 +1,7 @@
 name: Renovate
 
 on:
-  schedule:
-    - cron: '0/15 * * * *'
+  # Disabled: Mend cloud handles scheduling
   workflow_dispatch:
 
 jobs:
