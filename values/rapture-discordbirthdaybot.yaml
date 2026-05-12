@@ -12,7 +12,25 @@ listenerTemplate:
       - name: listener
 
 minRunners: 1
-maxRunners: 5
+maxRunners: 10
+
+template:
+  spec:
+    containers:
+      - name: runner
+        resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            memory: "8Gi"
+      - name: dind
+        resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            memory: "8Gi"
 
 containerMode:
   type: "dind"
