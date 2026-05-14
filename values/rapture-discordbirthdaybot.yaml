@@ -16,11 +16,24 @@ maxRunners: 10
 
 template:
   spec:
+    initContainers:
+      - name: dind
+        startupProbe:
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+          periodSeconds: 5
+          failureThreshold: 24
     containers:
       - name: runner
-        image: ghcr.io/actions/actions-runner:latest
+        image: ghcr.io/actions/actions-runner:2.324.0
         imagePullPolicy: IfNotPresent
-      - name: dind
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: gha-runner-scale-set
 
 containerMode:
   type: "dind"
