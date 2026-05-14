@@ -22,6 +22,13 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: arc-runners
+  ignoreDifferences:
+    - group: actions.github.com
+      kind: AutoscalingRunnerSet
+      jsonPointers:
+        - /metadata/annotations/actions.github.com~1change-hash
+        - /metadata/annotations/actions.github.com~1values-hash
+        - /metadata/annotations/runner-scale-set-id
   syncPolicy:
     automated:
       prune: true

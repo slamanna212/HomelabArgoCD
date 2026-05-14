@@ -18,6 +18,7 @@ template:
   spec:
     containers:
       - name: runner
+        image: ghcr.io/actions/actions-runner:latest
         resources:
           requests:
             cpu: "2"
