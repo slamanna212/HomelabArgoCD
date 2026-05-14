@@ -20,19 +20,7 @@ template:
       - name: runner
         image: ghcr.io/actions/actions-runner:latest
         imagePullPolicy: IfNotPresent
-        resources:
-          requests:
-            cpu: "500m"
-            memory: "512Mi"
-          limits:
-            memory: "8Gi"
       - name: dind
-        resources:
-          requests:
-            cpu: "500m"
-            memory: "512Mi"
-          limits:
-            memory: "8Gi"
 
 containerMode:
   type: "dind"
