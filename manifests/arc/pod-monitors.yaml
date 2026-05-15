@@ -25,7 +25,7 @@ metadata:
 spec:
   namespaceSelector:
     matchNames:
-      - arc-runners
+      - arc-systems
   selector:
     matchExpressions:
       - key: actions.github.com/scale-set-name
