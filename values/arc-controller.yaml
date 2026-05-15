@@ -1,5 +1,12 @@
 replicaCount: 2
 
+flags:
+  logLevel: "info"
+  runnerMaxConcurrentReconciles: 6
+  excludeLabelPropagationPrefixes:
+    - "argocd.argoproj.io"
+  updateStrategy: "eventual"
+
 metrics:
   controllerManagerAddr: ":8080"
   listenerAddr: ":8080"

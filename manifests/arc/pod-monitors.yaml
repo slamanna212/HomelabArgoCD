@@ -23,6 +23,9 @@ metadata:
   labels:
     app.kubernetes.io/part-of: actions-runner-controller
 spec:
+  namespaceSelector:
+    matchNames:
+      - arc-runners
   selector:
     matchExpressions:
       - key: actions.github.com/scale-set-name
