@@ -16,13 +16,6 @@ maxRunners: 10
 
 template:
   spec:
-    initContainers:
-      - name: dind
-        startupProbe:
-          initialDelaySeconds: 30
-          timeoutSeconds: 5
-          periodSeconds: 5
-          failureThreshold: 24
     containers:
       - name: runner
         image: ghcr.io/actions/actions-runner:2.324.0
