@@ -1316,7 +1316,7 @@ data:
               "legendFormat": "{{account_name}}",
               "range": true,
               "refId": "A"
-            },
+            }
           ],
           "title": "Connections",
           "type": "timeseries"
