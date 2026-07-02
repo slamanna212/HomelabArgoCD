@@ -644,7 +644,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "dispatcharr_stream_current_bitrate_bps\n* on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n    dispatcharr_stream_metadata",
+              "expr": "dispatcharr_stream_video_bitrate_bps\n* on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n    dispatcharr_stream_metadata",
               "format": "table",
               "hide": false,
               "instant": true,
