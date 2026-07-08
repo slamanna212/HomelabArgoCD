@@ -20,7 +20,7 @@ data:
               summary: WireGuard VPN client connected
               description: '{{ $labels.client }} connected to WireGuard VPN from {{ $labels.src }}'
           - alert: WireGuardVPNDisconnect
-            expr: 'sum by (client, duration, usage_down, usage_up) (count_over_time({job="network-syslog", vpn_event="VPN Client Disconnected"} | pattern `<_>suser=<client> <_>UNIFIduration=<duration> <_>UNIFIusageDown=<usage_down> <_>UNIFIusageUp=<usage_up><_>` [2m])) > 0'
+            expr: 'sum by (client, duration, usage_down, usage_up) (count_over_time({job="network-syslog", vpn_event="VPN Client Disconnected"} | pattern `<_>suser=<client> <_>UNIFIduration=<duration> <_>UNIFIusageDown=<usage_down> <_>UNIFIusageUp=<usage_up> <_>` [2m])) > 0'
             for: 0s
             labels:
               severity: info
