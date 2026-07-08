@@ -23,6 +23,18 @@ loki:
   compactor:
     retention_enabled: true
     delete_request_store: filesystem
+  ruler:
+    storage:
+      type: local
+      local:
+        directory: /rules
+    rule_path: /tmp/loki-rules
+    alertmanager_url: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
+    ring:
+      kvstore:
+        store: inmemory
+    enable_api: true
+    enable_alertmanager_v2: true
 
 singleBinary:
   replicas: 1
@@ -30,6 +42,13 @@ singleBinary:
     enabled: true
     storageClass: longhorn-sata
     size: 20Gi
+  extraVolumes:
+    - name: vpn-rules
+      configMap:
+        name: loki-vpn-rules
+  extraVolumeMounts:
+    - name: vpn-rules
+      mountPath: /rules/fake
 
 # Disable distributed-mode components
 read:
