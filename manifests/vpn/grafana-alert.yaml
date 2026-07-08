@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wireguard-vpn-alert
+  namespace: monitoring
+  labels:
+    grafana_alert: "1"
+data:
+  wireguard-vpn-alert.yaml: |
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: VPN Alerts
+        folder: VPN
+        interval: 1m
+        rules:
+          - uid: wireguard-login
+            title: WireGuard VPN Login
+            condition: A
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 120
+                  to: 0
+                datasourceUid: loki
+                model:
+                  datasource:
+                    type: loki
+                    uid: loki
+                  editorMode: code
+                  expr: 'sum(count_over_time({job="unifi-syslog"} |~ "(?i)wireguard" |~ "session is ready" [2m]))'
+                  instant: true
+                  queryType: instant
+                  refId: A
+            noDataState: OK
+            execErrState: Alerting
+            for: 0s
+            annotations:
+              summary: WireGuard peer connected
+              description: A VPN peer established a WireGuard session on the UniFi gateway
+            labels:
+              severity: info
