@@ -28,7 +28,7 @@ data:
                     type: loki
                     uid: loki
                   editorMode: code
-                  expr: 'sum(count_over_time({job="unifi-syslog"} |~ "(?i)wireguard" |~ "session is ready" [2m]))'
+                  expr: 'sum(count_over_time({job="network-syslog"} |~ "(?i)wireguard" |~ "session is ready" [2m]))'
                   instant: true
                   queryType: instant
                   refId: A

@@ -7,23 +7,39 @@ config:
 
   snippets:
     extraScrapeConfigs: |
-      - job_name: unifi-syslog
-        syslog:
-          listen_address: 0.0.0.0:1514
-          listen_protocol: udp
-          idle_timeout: 60s
-          use_incoming_timestamp: true
-          label_structured_data: true
-          labels:
-            job: unifi-syslog
+      # Scrape the syslog-ng pod so its logs land in Loki as job=network-syslog.
+      # syslog-ng accepts UDP syslog from any device (UniFi, routers, switches, VMs, etc.)
+      # Query in Grafana: {job="network-syslog"} — filter by host/app labels for specific devices.
+      - job_name: network-syslog
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - monitoring
         relabel_configs:
-          - source_labels: [__syslog_message_hostname]
-            target_label: host
-          - source_labels: [__syslog_message_app_name]
-            target_label: app
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: syslog-ng
+            action: keep
+          - replacement: network-syslog
+            target_label: job
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+          - source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
+            separator: /
+            regex: (.+)/(.+)
+            target_label: __path__
+            replacement: /var/log/pods/*$1*/$2/*.log
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Pending|Succeeded|Failed|Completed
+            action: drop
         pipeline_stages:
+          - cri: {}
           - match:
-              selector: '{job="unifi-syslog"} |~ "(?i)wireguard"'
+              selector: '{job="network-syslog"} |~ "(?i)wireguard"'
               stages:
                 - regex:
                     expression: 'wireguard: \[(?P<interface>[^\]]+)\] peer\((?P<peer>[^)]+)\): (?P<event>.+)'
@@ -31,9 +47,3 @@ config:
                     interface:
                     peer:
                     event:
-
-extraPorts:
-  syslog-udp:
-    name: syslog-udp
-    containerPort: 1514
-    protocol: UDP

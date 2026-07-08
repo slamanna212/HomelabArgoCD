@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: syslog-ng-config
+  namespace: monitoring
+data:
+  syslog-ng.conf: |
+    @version: 4.8
+    @include "scl.conf"
+    options {
+      keep_hostname(yes);
+      use_dns(no);
+      use_fqdn(no);
+    };
+    # Accepts RFC3164 UDP syslog from any network device: UniFi, routers, switches, VMs, etc.
+    source s_udp {
+      network(transport("udp") port(1514) flags(no-multi-line));
+    };
+    destination d_stdout {
+      file("/dev/stdout" template("${DATE} ${HOST} ${PROGRAM}: ${MSG}\n") template-escape(no));
+    };
+    log { source(s_udp); destination(d_stdout); };

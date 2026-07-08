@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syslog-ng
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syslog-ng
+  template:
+    metadata:
+      labels:
+        app: syslog-ng
+    spec:
+      containers:
+        - name: syslog-ng
+          image: balabit/syslog-ng:4.8.1
+          ports:
+            - name: syslog-udp
+              containerPort: 1514
+              protocol: UDP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/syslog-ng/syslog-ng.conf
+              subPath: syslog-ng.conf
+      volumes:
+        - name: config
+          configMap:
+            name: syslog-ng-config

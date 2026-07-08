@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: unifi-syslog
+  name: network-syslog
   namespace: monitoring
 spec:
   type: LoadBalancer
   loadBalancerIP: 10.1.20.203
   selector:
-    app.kubernetes.io/name: promtail
+    app: syslog-ng
   ports:
     - name: syslog-udp
       port: 1514
