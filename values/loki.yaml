@@ -42,13 +42,6 @@ singleBinary:
     enabled: true
     storageClass: longhorn-sata
     size: 20Gi
-  extraVolumes:
-    - name: vpn-rules
-      configMap:
-        name: loki-vpn-rules
-  extraVolumeMounts:
-    - name: vpn-rules
-      mountPath: /rules/fake
 
 # Disable distributed-mode components
 read:

@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: loki-vpn-rules
   namespace: monitoring
+  labels:
+    loki_rule: "1"
 data:
   vpn-alerts.yaml: |
     groups:
