@@ -50,6 +50,9 @@ grafana:
     alerts:
       enabled: true
       searchNamespace: ALL
+  deleteDatasources:
+    - name: Loki
+      orgId: 1
   additionalDataSources:
     - name: Loki
       type: loki
