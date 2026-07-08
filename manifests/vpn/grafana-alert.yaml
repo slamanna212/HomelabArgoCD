@@ -16,7 +16,7 @@ data:
         rules:
           - uid: wireguard-login
             title: WireGuard VPN Login
-            condition: A
+            condition: B
             data:
               - refId: A
                 relativeTimeRange:
@@ -32,6 +32,29 @@ data:
                   instant: true
                   queryType: instant
                   refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - A
+                      reducer:
+                        type: last
+                      type: query
+                  datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  refId: B
+                  type: classic_conditions
             noDataState: OK
             execErrState: Alerting
             for: 0s
@@ -43,7 +66,7 @@ data:
 
           - uid: wireguard-disconnect
             title: WireGuard VPN Disconnect
-            condition: A
+            condition: B
             data:
               - refId: A
                 relativeTimeRange:
@@ -59,6 +82,29 @@ data:
                   instant: true
                   queryType: instant
                   refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - A
+                      reducer:
+                        type: last
+                      type: query
+                  datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  refId: B
+                  type: classic_conditions
             noDataState: OK
             execErrState: Alerting
             for: 0s
