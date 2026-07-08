@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: syslog-ng
-          image: balabit/syslog-ng:4.8.1
+          image: balabit/syslog-ng:4.12.0
           ports:
             - name: syslog-udp
               containerPort: 1514
