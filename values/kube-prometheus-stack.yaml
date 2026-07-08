@@ -78,7 +78,7 @@ kubeStateMetrics:
   enabled: true
 
 kube-state-metrics:
-  replicas: 2
+  replicas: 1
   prometheus:
     monitor:
       relabelings:
