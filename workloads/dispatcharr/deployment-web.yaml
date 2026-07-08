@@ -68,6 +68,8 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: recordings
+              mountPath: /data/recordings
             - name: tmp
               mountPath: /tmp
           livenessProbe:
@@ -95,5 +97,8 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: dispatcharr-data
+        - name: recordings
+          persistentVolumeClaim:
+            claimName: dispatcharr-recordings
         - name: tmp
           emptyDir: {}

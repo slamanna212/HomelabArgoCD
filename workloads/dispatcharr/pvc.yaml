@@ -10,3 +10,18 @@ spec:
   resources:
     requests:
       storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dispatcharr-recordings
+  namespace: dispatcharr
+  annotations:
+    k8up.io/backup: "false"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-sata
+  resources:
+    requests:
+      storage: 100Gi
