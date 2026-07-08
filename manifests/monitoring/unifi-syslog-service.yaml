@@ -9,7 +9,7 @@ spec:
   selector:
     app.kubernetes.io/name: promtail
   ports:
-    - name: syslog-tcp
+    - name: syslog-udp
       port: 1514
       targetPort: 1514
-      protocol: TCP
+      protocol: UDP

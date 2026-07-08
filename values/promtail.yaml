@@ -10,7 +10,9 @@ config:
       - job_name: unifi-syslog
         syslog:
           listen_address: 0.0.0.0:1514
+          listen_protocol: udp
           idle_timeout: 60s
+          use_incoming_timestamp: true
           label_structured_data: true
           labels:
             job: unifi-syslog
