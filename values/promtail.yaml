@@ -31,6 +31,7 @@ config:
                     event:
 
 extraPorts:
-  - name: syslog-udp
+  syslog-udp:
+    name: syslog-udp
     containerPort: 1514
     protocol: UDP
