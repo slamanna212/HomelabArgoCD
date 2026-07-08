@@ -23,16 +23,17 @@ loki:
   compactor:
     retention_enabled: true
     delete_request_store: filesystem
-  ruler:
+  # NOTE: the chart reads ruler config from `loki.rulerConfig` (renders via the
+  # loki.rulerConfig template). A `loki.ruler` block is silently ignored.
+  rulerConfig:
+    wal:
+      dir: /var/loki/ruler-wal
     storage:
       type: local
       local:
         directory: /rules
     rule_path: /tmp/loki-rules
     alertmanager_url: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
-    ring:
-      kvstore:
-        store: inmemory
     enable_api: true
     enable_alertmanager_v2: true
 
