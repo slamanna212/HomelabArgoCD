@@ -42,6 +42,15 @@ singleBinary:
     enabled: true
     storageClass: longhorn-sata
     size: 20Gi
+  # Mount the VPN alert rules ConfigMap into the ruler's local storage dir.
+  # auth_enabled=false => tenant "fake", so rules must live at /rules/fake/.
+  extraVolumes:
+    - name: vpn-rules
+      configMap:
+        name: loki-vpn-rules
+  extraVolumeMounts:
+    - name: vpn-rules
+      mountPath: /rules/fake
 
 # Disable distributed-mode components
 read:
