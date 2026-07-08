@@ -22,10 +22,11 @@
   ],
   "packageRules": [
     {
-      "description": "Only track stable semver releases for dispatcharr",
+      "description": "Only track stable semver releases for dispatcharr, and prioritize it so it isn't perpetually rate-limited out by the backlog of other pending PRs",
       "matchPackageNames": ["dispatcharr/dispatcharr"],
       "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/",
-      "ignoreUnstable": true
+      "ignoreUnstable": true,
+      "prPriority": 5
     },
     {
       "description": "Group all monitoring stack updates together",
