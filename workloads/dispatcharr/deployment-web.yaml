@@ -19,6 +19,43 @@ spec:
         component: web
     spec:
       initContainers:
+        - name: gluetun
+          restartPolicy: Always
+          image: qmcgaw/gluetun
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+          volumeMounts:
+            - name: dev-net-tun
+              mountPath: /dev/net/tun
+          env:
+            - name: VPN_SERVICE_PROVIDER
+              value: "mullvad"
+            - name: VPN_TYPE
+              value: "wireguard"
+            - name: WIREGUARD_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dispatcharr-vpn-secret
+                  key: wireguard-private-key
+            - name: WIREGUARD_ADDRESSES
+              valueFrom:
+                secretKeyRef:
+                  name: dispatcharr-vpn-secret
+                  key: wireguard-addresses
+            - name: SERVER_HOSTNAMES
+              value: "us-qas-wg-306"
+            - name: FIREWALL_OUTBOUND_SUBNETS
+              value: "10.244.0.0/16,10.96.0.0/12"
+            - name: HEALTH_SERVER_ADDRESS
+              value: "0.0.0.0:9999"
+          startupProbe:
+            httpGet:
+              path: /
+              port: 9999
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 24
         - name: wait-for-postgres
           image: busybox:1.36
           command: ["sh", "-c", "until nc -z dispatcharr-postgresql 5432; do echo waiting for postgres; sleep 2; done"]
@@ -102,3 +139,6 @@ spec:
             claimName: dispatcharr-recordings
         - name: tmp
           emptyDir: {}
+        - name: dev-net-tun
+          hostPath:
+            path: /dev/net/tun

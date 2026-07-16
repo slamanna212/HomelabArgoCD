@@ -50,6 +50,21 @@ manifests/       # Raw K8s manifests (IngressRoutes, etc.), organized by subdire
 - **kube-prometheus-stack** — Monitoring (Prometheus, Grafana, Alertmanager, node-exporter, kube-state-metrics) in `monitoring` namespace
 - **manifests** — Raw K8s manifests (IngressRoutes for all UIs)
 
+## Dispatcharr VPN Egress
+
+Dispatcharr's web pod runs a `gluetun` sidecar (Mullvad WireGuard) to route its own outbound
+internet traffic through a VPN, independent of which node it's scheduled on (UniFi PBR isn't
+usable here — pods have no stable MAC/L2 identity on the LAN). Configured via `SERVER_HOSTNAMES`
+in `workloads/dispatcharr/deployment-web.yaml`:
+
+- Default: `us-qas-wg-306` (Ashburn, VA — Tzulo, 20 Gbps)
+- Canada override (use for up to ~24h): `ca-tor-wg-203` (Toronto — Tzulo, 10 Gbps)
+
+To swap: edit `SERVER_HOSTNAMES`, commit, push. Revert the same way when done. Credentials
+(`dispatcharr-vpn-secret`) come from Azure Key Vault via
+`workloads/dispatcharr/external-secrets.yaml` — the WireGuard `Address` is tied to the Mullvad
+account/key, not the server, so it's the same value regardless of which server is selected.
+
 ## Traefik Entrypoints & UI Access
 
 Traefik runs two LoadBalancer services with separate IPs (assigned by MetalLB). Each port's `expose` map in `values/traefik.yaml` controls which service it appears on.
