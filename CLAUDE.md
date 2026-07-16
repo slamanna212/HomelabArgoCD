@@ -38,6 +38,14 @@ manifests/       # Raw K8s manifests (IngressRoutes, etc.), organized by subdire
 
 **Cluster topology:** 3 control-plane + 4 worker nodes
 
+**Networking note:** kubeadm's `ClusterConfiguration` declares `podSubnet: 10.244.0.0/16`, but
+Cilium's actual pod IPAM is `cluster-pool-ipv4-cidr: 10.0.0.0/8` (Cilium's Helm install never set a
+custom pool, so it fell back to its own default rather than using kubeadm's declared subnet) —
+real pod IPs are `10.0.x.x`, not `10.244.x.x`. `serviceSubnet: 10.96.0.0/12` (kubeadm-config) is
+correct and does match reality, since that's assigned by the API server, not Cilium. Verify with
+`kubectl -n kube-system get configmap cilium-config -o yaml | grep -i cidr` if in doubt — don't
+trust the kubeadm-config podSubnet value for anything Cilium-related.
+
 **Storage classes:**
 - `longhorn` — General purpose storage; use this as the default for most workloads
 - `longhorn-nvme` — Requires `nvme` disk tag on nodes (not currently configured); do not use
