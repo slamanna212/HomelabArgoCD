@@ -72,6 +72,8 @@ spec:
               value: "modular"
             - name: DISPATCHARR_PORT
               value: "9191"
+            - name: DISPATCHARR_WEB_HOST
+              value: "dispatcharr"
             - name: POSTGRES_HOST
               value: "dispatcharr-postgresql"
             - name: POSTGRES_PORT
