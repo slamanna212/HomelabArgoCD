@@ -65,6 +65,12 @@ To swap: edit `SERVER_HOSTNAMES`, commit, push. Revert the same way when done. C
 `workloads/dispatcharr/external-secrets.yaml` — the WireGuard `Address` is tied to the Mullvad
 account/key, not the server, so it's the same value regardless of which server is selected.
 
+**Gotcha:** gluetun's own iptables killswitch firewall applies to the whole Pod, not just the
+gluetun container, because Kubernetes Pods share one network namespace. Any port that needs to be
+reachable — Dispatcharr's `9191`, and gluetun's own health-check port `9999` used by the
+`startupProbe` — must be listed in `FIREWALL_INPUT_PORTS` on the gluetun container, or it gets
+silently dropped. If a future port gets added to this pod, add it there too.
+
 ## Traefik Entrypoints & UI Access
 
 Traefik runs two LoadBalancer services with separate IPs (assigned by MetalLB). Each port's `expose` map in `values/traefik.yaml` controls which service it appears on.
