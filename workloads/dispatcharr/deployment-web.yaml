@@ -55,6 +55,7 @@ spec:
               port: 9999
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
             failureThreshold: 24
         - name: wait-for-postgres
           image: busybox:1.36
