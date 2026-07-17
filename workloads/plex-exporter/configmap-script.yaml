@@ -39,6 +39,45 @@ data:
             return json.loads(resp.read())
 
 
+    GEO_LOOKUP = os.environ.get("GEO_LOOKUP", "true").lower() != "false"
+    GEO_CACHE_TTL = int(os.environ.get("GEO_CACHE_TTL", "86400"))
+    _geo_cache = {}
+
+
+    def _is_public_ip(ip):
+        # IPv4 only; skip RFC1918/loopback/link-local (and IPv6, which we don't map).
+        if not ip or ip.count(".") != 3:
+            return False
+        try:
+            a, b = (int(x) for x in ip.split(".")[:2])
+        except ValueError:
+            return False
+        if a in (10, 127) or a == 169 or (a == 192 and b == 168) or (a == 172 and 16 <= b <= 31):
+            return False
+        return True
+
+
+    def geolocate(ip):
+        # Best-effort GeoIP via ip-api.com (no key, ~45 req/min free); cached per IP.
+        if not (GEO_LOOKUP and _is_public_ip(ip)):
+            return None
+        now = time.time()
+        hit = _geo_cache.get(ip)
+        if hit and now - hit[4] < GEO_CACHE_TTL:
+            return hit[:4]
+        try:
+            url = f"http://ip-api.com/json/{ip}?fields=status,lat,lon,city,country"
+            with urllib.request.urlopen(url, timeout=REQUEST_TIMEOUT) as resp:
+                info = json.loads(resp.read())
+            if info.get("status") == "success":
+                result = (info["lat"], info["lon"], info.get("city", ""), info.get("country", ""))
+                _geo_cache[ip] = (*result, now)
+                return result
+        except Exception:
+            pass
+        return None
+
+
     def get_sessions():
         try:
             data = plex_get("/status/sessions")
@@ -59,6 +98,7 @@ data:
             else:
                 decision = "transcode"
             session = m.get("Session", {})
+            geo = geolocate(player.get("remotePublicAddress") or "")
             sessions.append({
                 "user": m.get("User", {}).get("title", "unknown"),
                 "title": m.get("grandparentTitle") or m.get("title") or "unknown",
@@ -70,6 +110,10 @@ data:
                 "progress": progress,
                 "bandwidth": session.get("bandwidth", 0) or 0,
                 "location": session.get("location", "lan"),
+                "lat": geo[0] if geo else None,
+                "lon": geo[1] if geo else None,
+                "city": geo[2] if geo else "",
+                "country": geo[3] if geo else "",
             })
         return sessions
 
@@ -172,6 +216,18 @@ data:
         ):
             lines.append(f"# TYPE {name} gauge")
             lines.append(f"{name} {value}")
+
+        lines.append("# HELP plex_stream_location Active stream located by public IP; value 1, geo in labels")
+        lines.append("# TYPE plex_stream_location gauge")
+        for s in sessions:
+            if s.get("lat") is None:
+                continue
+            geo_labels = (
+                f'user="{esc(s["user"])}",title="{esc(s["title"])}",'
+                f'city="{esc(s["city"])}",country="{esc(s["country"])}",'
+                f'latitude="{s["lat"]}",longitude="{s["lon"]}"'
+            )
+            lines.append(f"plex_stream_location{{{geo_labels}}} 1")
 
         with _library_lock:
             items, quality, library_ok = _library_cache["items"], _library_cache["quality"], _library_cache["ok"]

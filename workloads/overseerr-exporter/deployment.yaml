@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: overseerr-exporter
-          image: ghcr.io/willfantom/overseerr-exporter:v1.2.1
+          image: ghcr.io/willfantom/overseerr-exporter:1.2.1
           env:
             - name: OVERSEERR_ADDRESS
               valueFrom:
