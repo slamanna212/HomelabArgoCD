@@ -36,15 +36,16 @@ spec:
             - containerPort: 9850
               name: metrics
               protocol: TCP
+          # This exporter has no /healthz and serves /metrics by doing a live
+          # Overseerr API call, which can exceed a probe timeout. Use a TCP
+          # check so the pod's health doesn't depend on Overseerr being reachable.
           livenessProbe:
-            httpGet:
-              path: /metrics
+            tcpSocket:
               port: metrics
             initialDelaySeconds: 15
             periodSeconds: 30
           readinessProbe:
-            httpGet:
-              path: /metrics
+            tcpSocket:
               port: metrics
             initialDelaySeconds: 5
             periodSeconds: 10
