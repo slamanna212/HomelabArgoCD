@@ -146,7 +146,7 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 16,
+            "w": 24,
             "x": 0,
             "y": 1
           },
@@ -257,13 +257,46 @@ data:
               {
                 "matcher": {
                   "id": "byName",
-                  "options": "Up"
+                  "options": "Watched %"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "percent"
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "gauge",
+                      "mode": "gradient",
+                      "valueDisplayMode": "text"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "continuous-BlPu"
+                    }
+                  },
+                  {
+                    "id": "max",
+                    "value": 100
+                  },
+                  {
+                    "id": "min",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "State"
                 },
                 "properties": [
                   {
                     "id": "custom.cellOptions",
                     "value": {
-                      "applyToRow": true,
                       "type": "color-background"
                     }
                   },
@@ -272,15 +305,17 @@ data:
                     "value": [
                       {
                         "options": {
-                          "1": {
+                          "playing": {
                             "color": "green",
-                            "index": 0,
-                            "text": "Up"
+                            "index": 0
                           },
-                          "0": {
-                            "color": "red",
-                            "index": 1,
-                            "text": "Down"
+                          "paused": {
+                            "color": "orange",
+                            "index": 1
+                          },
+                          "buffering": {
+                            "color": "blue",
+                            "index": 2
                           }
                         },
                         "type": "value"
@@ -288,16 +323,28 @@ data:
                     ]
                   }
                 ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Last Seen"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "dateTimeFromNow"
+                  }
+                ]
               }
             ]
           },
           "gridPos": {
             "h": 8,
-            "w": 8,
-            "x": 16,
-            "y": 1
+            "w": 24,
+            "x": 0,
+            "y": 9
           },
-          "id": 3,
+          "id": 41,
           "options": {
             "cellHeight": "sm",
             "enablePagination": false,
@@ -311,15 +358,28 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "up{job=~\"plex-exporter|exportarr-sonarr|exportarr-radarr|exportarr-sabnzbd|overseerr-exporter|nzbhydra-exporter\"}",
+              "expr": "last_over_time(plex_session_progress_percent[$__range])",
               "format": "table",
               "instant": true,
               "range": false,
               "legendFormat": "__auto",
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "timestamp(last_over_time(plex_session_progress_percent[$__range])) * 1000",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "__auto",
+              "refId": "B"
             }
           ],
-          "title": "Services Status",
+          "title": "Stream History",
           "transformations": [
             {
               "id": "labelsToFields",
@@ -343,13 +403,33 @@ data:
                   "pod": true,
                   "service": true,
                   "endpoint": true,
-                  "url": true
+                  "url": true,
+                  "container": true,
+                  "prometheus": true,
+                  "prometheus_replica": true
                 },
                 "includeByName": {},
-                "indexByName": {},
+                "indexByName": {
+                  "title": 0,
+                  "user": 1,
+                  "media_type": 2,
+                  "quality": 3,
+                  "device": 4,
+                  "decision": 5,
+                  "player_state": 6,
+                  "Value #A": 7,
+                  "Value #B": 8
+                },
                 "renameByName": {
-                  "job": "Service",
-                  "Value": "Up"
+                  "user": "User",
+                  "title": "Title",
+                  "media_type": "Type",
+                  "device": "Device",
+                  "quality": "Quality",
+                  "decision": "Stream Type",
+                  "player_state": "State",
+                  "Value #A": "Watched %",
+                  "Value #B": "Last Seen"
                 }
               }
             }
@@ -380,7 +460,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 9
+            "y": 17
           },
           "id": 4,
           "options": {
@@ -456,7 +536,7 @@ data:
             "h": 4,
             "w": 6,
             "x": 12,
-            "y": 9
+            "y": 17
           },
           "id": 5,
           "options": {
@@ -520,7 +600,7 @@ data:
             "h": 4,
             "w": 6,
             "x": 18,
-            "y": 9
+            "y": 17
           },
           "id": 6,
           "options": {
@@ -584,7 +664,7 @@ data:
             "h": 4,
             "w": 6,
             "x": 12,
-            "y": 13
+            "y": 21
           },
           "id": 7,
           "options": {
@@ -648,7 +728,7 @@ data:
             "h": 4,
             "w": 6,
             "x": 18,
-            "y": 13
+            "y": 21
           },
           "id": 8,
           "options": {
@@ -691,7 +771,7 @@ data:
             "h": 10,
             "w": 24,
             "x": 0,
-            "y": 17
+            "y": 25
           },
           "id": 40,
           "title": "Active Stream Locations",
@@ -864,7 +944,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 27
+            "y": 35
           },
           "id": 9,
           "panels": [],
@@ -901,7 +981,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 0,
-            "y": 28
+            "y": 36
           },
           "id": 10,
           "options": {
@@ -965,7 +1045,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 4,
-            "y": 28
+            "y": 36
           },
           "id": 11,
           "options": {
@@ -1029,7 +1109,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 8,
-            "y": 28
+            "y": 36
           },
           "id": 12,
           "options": {
@@ -1093,7 +1173,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 12,
-            "y": 28
+            "y": 36
           },
           "id": 13,
           "options": {
@@ -1157,7 +1237,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 16,
-            "y": 28
+            "y": 36
           },
           "id": 17,
           "options": {
@@ -1216,7 +1296,7 @@ data:
             "h": 8,
             "w": 6,
             "x": 0,
-            "y": 31
+            "y": 39
           },
           "id": 18,
           "options": {
@@ -1278,7 +1358,7 @@ data:
             "h": 8,
             "w": 6,
             "x": 6,
-            "y": 31
+            "y": 39
           },
           "id": 19,
           "options": {
@@ -1341,7 +1421,7 @@ data:
             "h": 8,
             "w": 6,
             "x": 12,
-            "y": 31
+            "y": 39
           },
           "id": 20,
           "options": {
@@ -1403,7 +1483,7 @@ data:
             "h": 8,
             "w": 6,
             "x": 18,
-            "y": 31
+            "y": 39
           },
           "id": 21,
           "options": {
@@ -1446,7 +1526,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 47
           },
           "id": 22,
           "panels": [],
@@ -1483,7 +1563,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 0,
-            "y": 40
+            "y": 48
           },
           "id": 23,
           "options": {
@@ -1547,7 +1627,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 4,
-            "y": 40
+            "y": 48
           },
           "id": 24,
           "options": {
@@ -1611,7 +1691,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 8,
-            "y": 40
+            "y": 48
           },
           "id": 25,
           "options": {
@@ -1675,7 +1755,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 12,
-            "y": 40
+            "y": 48
           },
           "id": 26,
           "options": {
@@ -1739,7 +1819,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 16,
-            "y": 40
+            "y": 48
           },
           "id": 27,
           "options": {
@@ -1803,7 +1883,7 @@ data:
             "h": 3,
             "w": 4,
             "x": 20,
-            "y": 40
+            "y": 48
           },
           "id": 28,
           "options": {
@@ -1910,7 +1990,7 @@ data:
             "h": 7,
             "w": 8,
             "x": 0,
-            "y": 43
+            "y": 51
           },
           "id": 29,
           "options": {
@@ -2045,7 +2125,7 @@ data:
             "h": 7,
             "w": 8,
             "x": 8,
-            "y": 43
+            "y": 51
           },
           "id": 30,
           "options": {
@@ -2139,7 +2219,7 @@ data:
             "h": 7,
             "w": 8,
             "x": 16,
-            "y": 43
+            "y": 51
           },
           "id": 31,
           "options": {
@@ -2233,7 +2313,7 @@ data:
             "h": 7,
             "w": 8,
             "x": 0,
-            "y": 50
+            "y": 58
           },
           "id": 32,
           "options": {
@@ -2349,7 +2429,7 @@ data:
             "h": 7,
             "w": 8,
             "x": 8,
-            "y": 50
+            "y": 58
           },
           "id": 33,
           "options": {
@@ -2414,7 +2494,7 @@ data:
             "h": 7,
             "w": 8,
             "x": 16,
-            "y": 50
+            "y": 58
           },
           "id": 34,
           "options": {
@@ -2464,7 +2544,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 57
+            "y": 65
           },
           "id": 35,
           "panels": [],
@@ -2544,7 +2624,7 @@ data:
             "h": 8,
             "w": 14,
             "x": 0,
-            "y": 58
+            "y": 66
           },
           "id": 36,
           "options": {
@@ -2639,7 +2719,7 @@ data:
             "h": 8,
             "w": 10,
             "x": 14,
-            "y": 58
+            "y": 66
           },
           "id": 37,
           "options": {
@@ -2682,6 +2762,148 @@ data:
           ],
           "title": "Indexer Re-enable (days)",
           "type": "bargauge"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 74
+          },
+          "id": 42,
+          "panels": [],
+          "title": "Meta",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "center",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": false,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Up"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "applyToRow": true,
+                      "type": "color-background"
+                    }
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "options": {
+                          "1": {
+                            "color": "green",
+                            "index": 0,
+                            "text": "Up"
+                          },
+                          "0": {
+                            "color": "red",
+                            "index": 1,
+                            "text": "Down"
+                          }
+                        },
+                        "type": "value"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 0,
+            "y": 75
+          },
+          "id": 3,
+          "options": {
+            "cellHeight": "sm",
+            "enablePagination": false,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "editorMode": "code",
+              "expr": "up{job=~\"plex-exporter|exportarr-sonarr|exportarr-radarr|exportarr-sabnzbd|overseerr-exporter|nzbhydra-exporter\"}",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "legendFormat": "__auto",
+              "refId": "A"
+            }
+          ],
+          "title": "Services Status",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            },
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true,
+                  "endpoint": true,
+                  "url": true
+                },
+                "includeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "job": "Service",
+                  "Value": "Up"
+                }
+              }
+            }
+          ],
+          "type": "table"
         }
       ],
       "preload": true,
@@ -2702,7 +2924,7 @@ data:
       "timezone": "browser",
       "title": "Plex",
       "uid": "plex-media-monitoring",
-      "version": 2,
+      "version": 3,
       "weekStart": "",
       "id": null
     }
