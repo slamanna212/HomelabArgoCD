@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: nzbhydra-exporter
-          image: python:3.13-slim
+          image: python:3.14-slim
           command:
             - python3
             - /app/exporter.py
