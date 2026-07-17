@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exportarr-sonarr
+  namespace: media-monitoring
+  labels:
+    app: exportarr-sonarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exportarr-sonarr
+  template:
+    metadata:
+      labels:
+        app: exportarr-sonarr
+    spec:
+      containers:
+        - name: exportarr-sonarr
+          image: ghcr.io/onedr0p/exportarr:v2.3.0
+          args:
+            - sonarr
+          env:
+            - name: PORT
+              value: "9707"
+            - name: URL
+              valueFrom:
+                secretKeyRef:
+                  name: exportarr-sonarr
+                  key: url
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: exportarr-sonarr
+                  key: api-key
+          ports:
+            - containerPort: 9707
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10

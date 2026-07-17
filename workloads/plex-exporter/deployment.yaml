@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex-exporter
+  namespace: media-monitoring
+  labels:
+    app: plex-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: plex-exporter
+  template:
+    metadata:
+      labels:
+        app: plex-exporter
+    spec:
+      containers:
+        - name: plex-exporter
+          image: python:3.13-slim
+          command:
+            - python3
+            - /app/exporter.py
+          env:
+            - name: PLEX_URL
+              valueFrom:
+                secretKeyRef:
+                  name: plex-exporter
+                  key: url
+            - name: PLEX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: plex-exporter
+                  key: token
+            - name: METRICS_PORT
+              value: "8000"
+          ports:
+            - containerPort: 8000
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: script
+              mountPath: /app/exporter.py
+              subPath: exporter.py
+      volumes:
+        - name: script
+          configMap:
+            name: plex-exporter-script

@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nzbhydra-exporter
+  namespace: media-monitoring
+  labels:
+    app: nzbhydra-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nzbhydra-exporter
+  template:
+    metadata:
+      labels:
+        app: nzbhydra-exporter
+    spec:
+      containers:
+        - name: nzbhydra-exporter
+          image: python:3.13-slim
+          command:
+            - python3
+            - /app/exporter.py
+          env:
+            - name: NZBHYDRA_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nzbhydra-exporter
+                  key: url
+            - name: NZBHYDRA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nzbhydra-exporter
+                  key: api-key
+            - name: METRICS_PORT
+              value: "8000"
+          ports:
+            - containerPort: 8000
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: script
+              mountPath: /app/exporter.py
+              subPath: exporter.py
+      volumes:
+        - name: script
+          configMap:
+            name: nzbhydra-exporter-script

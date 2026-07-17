@@ -1,0 +1,225 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: plex-exporter-script
+  namespace: media-monitoring
+data:
+  exporter.py: |
+    import json
+    import os
+    import threading
+    import time
+    import urllib.parse
+    import urllib.request
+    from collections import Counter
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    PLEX_URL = os.environ["PLEX_URL"].rstrip("/")
+    PLEX_TOKEN = os.environ["PLEX_TOKEN"]
+    METRICS_PORT = int(os.environ.get("METRICS_PORT", "8000"))
+    LIBRARY_REFRESH_SECONDS = int(os.environ.get("LIBRARY_REFRESH_SECONDS", "600"))
+    REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
+    QUALITY_SCAN_CAP = int(os.environ.get("QUALITY_SCAN_CAP", "500"))
+
+    # type IDs per https://support.plex.tv/articles/201234786-collections/ metadata types
+    SECTION_TYPE_ITEM_TYPES = {
+        "movie": [("1", "movie")],
+        "show": [("2", "show"), ("3", "season"), ("4", "episode")],
+        "artist": [("8", "artist"), ("9", "album"), ("10", "track")],
+    }
+    QUALITY_SCAN_TYPES = {"movie", "episode"}
+
+
+    def plex_get(path, params=None):
+        params = dict(params or {})
+        params["X-Plex-Token"] = PLEX_TOKEN
+        url = f"{PLEX_URL}{path}?{urllib.parse.urlencode(params)}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+            return json.loads(resp.read())
+
+
+    def get_sessions():
+        try:
+            data = plex_get("/status/sessions")
+        except Exception:
+            return None
+        sessions = []
+        for m in data["MediaContainer"].get("Metadata", []):
+            duration = m.get("duration") or 0
+            offset = m.get("viewOffset") or 0
+            progress = round((offset / duration) * 100, 1) if duration else 0.0
+            player = m.get("Player", {})
+            media = m.get("Media", [{}])
+            transcode = m.get("TranscodeSession")
+            if transcode is None:
+                decision = "directplay"
+            elif transcode.get("videoDecision") == "copy":
+                decision = "directstream"
+            else:
+                decision = "transcode"
+            session = m.get("Session", {})
+            sessions.append({
+                "user": m.get("User", {}).get("title", "unknown"),
+                "title": m.get("grandparentTitle") or m.get("title") or "unknown",
+                "media_type": m.get("type", "unknown"),
+                "device": player.get("product", "unknown"),
+                "quality": media[0].get("videoResolution", "unknown") if media else "unknown",
+                "decision": decision,
+                "player_state": player.get("state", "unknown"),
+                "progress": progress,
+                "bandwidth": session.get("bandwidth", 0) or 0,
+                "location": session.get("location", "lan"),
+            })
+        return sessions
+
+
+    def scan_quality(key, type_id, cap=QUALITY_SCAN_CAP, page_size=100):
+        # Container-size 0 (used for item counts) omits Media info, so quality
+        # distribution needs a real paginated scan - capped to bound scrape cost
+        # on large libraries.
+        quality = Counter()
+        start = 0
+        while start < cap:
+            data = plex_get(f"/library/sections/{key}/all", {
+                "type": type_id,
+                "X-Plex-Container-Start": str(start),
+                "X-Plex-Container-Size": str(page_size),
+            })
+            metas = data["MediaContainer"].get("Metadata", [])
+            if not metas:
+                break
+            for meta in metas:
+                media = meta.get("Media", [{}])
+                res = media[0].get("videoResolution", "unknown") if media else "unknown"
+                quality[res] += 1
+            start += page_size
+            if len(metas) < page_size:
+                break
+        return quality
+
+
+    _library_lock = threading.Lock()
+    _library_cache = {"items": {}, "quality": {}, "ok": False}
+
+
+    def refresh_library_cache():
+        items = Counter()
+        quality = Counter()
+        ok = True
+        try:
+            sections = plex_get("/library/sections")["MediaContainer"].get("Directory", [])
+            for section in sections:
+                key, title, section_type = section["key"], section["title"], section["type"]
+                for type_id, item_type in SECTION_TYPE_ITEM_TYPES.get(section_type, []):
+                    data = plex_get(f"/library/sections/{key}/all", {
+                        "type": type_id,
+                        "X-Plex-Container-Start": "0",
+                        "X-Plex-Container-Size": "0",
+                    })
+                    container = data["MediaContainer"]
+                    items[(title, section_type, item_type)] += container.get("totalSize", container.get("size", 0))
+                    if item_type in QUALITY_SCAN_TYPES:
+                        for res, count in scan_quality(key, type_id).items():
+                            quality[(title, res)] += count
+        except Exception:
+            ok = False
+        with _library_lock:
+            _library_cache["items"] = dict(items)
+            _library_cache["quality"] = dict(quality)
+            _library_cache["ok"] = ok
+
+
+    def library_refresh_loop():
+        while True:
+            refresh_library_cache()
+            time.sleep(LIBRARY_REFRESH_SECONDS)
+
+
+    def esc(value):
+        return str(value).replace("\\", "\\\\").replace('"', '\\"')
+
+
+    def render_metrics():
+        lines = []
+        sessions = get_sessions()
+        lines.append("# HELP plex_up Whether the last scrape of the Plex API succeeded")
+        lines.append("# TYPE plex_up gauge")
+        lines.append(f"plex_up {1 if sessions is not None else 0}")
+
+        sessions = sessions or []
+        lines.append("# HELP plex_session_progress_percent Playback progress of an active session")
+        lines.append("# TYPE plex_session_progress_percent gauge")
+        for s in sessions:
+            labels = ",".join(
+                f'{k}="{esc(s[k])}"' for k in ("user", "title", "media_type", "device", "quality", "decision", "player_state")
+            )
+            lines.append(f'plex_session_progress_percent{{{labels}}} {s["progress"]}')
+
+        transcode = sum(1 for s in sessions if s["decision"] == "transcode")
+        direct_stream = sum(1 for s in sessions if s["decision"] == "directstream")
+        direct_play = sum(1 for s in sessions if s["decision"] == "directplay")
+        lan_bw = sum(s["bandwidth"] for s in sessions if s["location"] == "lan")
+        wan_bw = sum(s["bandwidth"] for s in sessions if s["location"] != "lan")
+        for name, value in (
+            ("plex_stream_count", len(sessions)),
+            ("plex_stream_transcode_count", transcode),
+            ("plex_stream_direct_stream_count", direct_stream),
+            ("plex_stream_direct_play_count", direct_play),
+            ("plex_bandwidth_total_kbps", lan_bw + wan_bw),
+            ("plex_bandwidth_lan_kbps", lan_bw),
+            ("plex_bandwidth_wan_kbps", wan_bw),
+        ):
+            lines.append(f"# TYPE {name} gauge")
+            lines.append(f"{name} {value}")
+
+        with _library_lock:
+            items, quality, library_ok = _library_cache["items"], _library_cache["quality"], _library_cache["ok"]
+
+        lines.append("# HELP plex_library_items_total Item counts per library, refreshed periodically")
+        lines.append("# TYPE plex_library_items_total gauge")
+        for (library, section_type, item_type), count in items.items():
+            lines.append(
+                f'plex_library_items_total{{library="{esc(library)}",section_type="{esc(section_type)}",item_type="{esc(item_type)}"}} {count}'
+            )
+
+        lines.append("# HELP plex_library_quality_total Sampled video-quality distribution, refreshed periodically")
+        lines.append("# TYPE plex_library_quality_total gauge")
+        for (library, quality_label), count in quality.items():
+            lines.append(f'plex_library_quality_total{{library="{esc(library)}",quality="{esc(quality_label)}"}} {count}')
+
+        lines.append("# HELP plex_library_scan_ok Whether the last periodic library scan succeeded")
+        lines.append("# TYPE plex_library_scan_ok gauge")
+        lines.append(f"plex_library_scan_ok {1 if library_ok else 0}")
+
+        return "\n".join(lines) + "\n"
+
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.startswith("/metrics"):
+                body = render_metrics().encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path.startswith("/healthz"):
+                self.send_response(200)
+                self.end_headers()
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, *_args):
+            pass
+
+
+    def main():
+        threading.Thread(target=library_refresh_loop, daemon=True).start()
+        ThreadingHTTPServer(("0.0.0.0", METRICS_PORT), Handler).serve_forever()
+
+
+    if __name__ == "__main__":
+        main()
+

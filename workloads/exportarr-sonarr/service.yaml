@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: exportarr-sonarr
+  namespace: media-monitoring
+  labels:
+    app: exportarr-sonarr
+    component: metrics
+spec:
+  selector:
+    app: exportarr-sonarr
+  ports:
+    - name: metrics
+      port: 9707
+      targetPort: 9707

@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: exportarr-sonarr
+  namespace: media-monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: exportarr-sonarr
+      component: metrics
+  namespaceSelector:
+    matchNames:
+      - media-monitoring
+  endpoints:
+    - port: metrics
+      path: /metrics

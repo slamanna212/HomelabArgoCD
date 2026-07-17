@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: overseerr-exporter
+  namespace: media-monitoring
+  labels:
+    app: overseerr-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: overseerr-exporter
+  template:
+    metadata:
+      labels:
+        app: overseerr-exporter
+    spec:
+      containers:
+        - name: overseerr-exporter
+          image: ghcr.io/willfantom/overseerr-exporter:v1.2.1
+          env:
+            - name: OVERSEERR_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  name: overseerr-exporter
+                  key: url
+            - name: OVERSEERR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: overseerr-exporter
+                  key: api-key
+          args:
+            - --overseerr.address=$(OVERSEERR_ADDRESS)
+            - --overseerr.api-key=$(OVERSEERR_API_KEY)
+          ports:
+            - containerPort: 9850
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10

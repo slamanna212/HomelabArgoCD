@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exportarr-radarr
+  namespace: media-monitoring
+  labels:
+    app: exportarr-radarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exportarr-radarr
+  template:
+    metadata:
+      labels:
+        app: exportarr-radarr
+    spec:
+      containers:
+        - name: exportarr-radarr
+          image: ghcr.io/onedr0p/exportarr:v2.3.0
+          args:
+            - radarr
+          env:
+            - name: PORT
+              value: "9707"
+            - name: URL
+              valueFrom:
+                secretKeyRef:
+                  name: exportarr-radarr
+                  key: url
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: exportarr-radarr
+                  key: api-key
+          ports:
+            - containerPort: 9707
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10

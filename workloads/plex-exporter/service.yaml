@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: plex-exporter
+  namespace: media-monitoring
+  labels:
+    app: plex-exporter
+    component: metrics
+spec:
+  selector:
+    app: plex-exporter
+  ports:
+    - name: metrics
+      port: 8000
+      targetPort: 8000

@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: exportarr-sonarr
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/slamanna212/HomelabArgoCD.git
+    targetRevision: main
+    path: workloads/exportarr-sonarr
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media-monitoring
+  ignoreDifferences:
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /metadata/finalizers
+        - /spec/refreshInterval
+      jqPathExpressions:
+        - .spec.data[].remoteRef.nullBytePolicy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

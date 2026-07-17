@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exportarr-sabnzbd
+  namespace: media-monitoring
+  labels:
+    app: exportarr-sabnzbd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exportarr-sabnzbd
+  template:
+    metadata:
+      labels:
+        app: exportarr-sabnzbd
+    spec:
+      containers:
+        - name: exportarr-sabnzbd
+          image: ghcr.io/onedr0p/exportarr:v2.3.0
+          args:
+            - sabnzbd
+          env:
+            - name: PORT
+              value: "9707"
+            - name: URL
+              valueFrom:
+                secretKeyRef:
+                  name: exportarr-sabnzbd
+                  key: url
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: exportarr-sabnzbd
+                  key: api-key
+          ports:
+            - containerPort: 9707
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10

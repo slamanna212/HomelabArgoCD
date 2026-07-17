@@ -1,0 +1,3 @@
+# Python bytecode (exporter scripts are run from ConfigMaps, never built here)
+__pycache__/
+*.py[cod]
