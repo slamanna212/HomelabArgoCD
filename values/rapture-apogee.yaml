@@ -11,6 +11,14 @@ listenerTemplate:
     containers:
       - name: listener
 
+template:
+  spec:
+    containers:
+      - name: runner
+        image: "ghcr.io/slamanna212/runnerimages/apogee:latest"
+        imagePullPolicy: Always
+        command: ["/home/runner/run.sh"]
+
 minRunners: 1
 maxRunners: 10
 

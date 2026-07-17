@@ -1,4 +1,4 @@
-githubConfigUrl: "https://github.com/slamanna212/slamanna.food"
+githubConfigUrl: "https://github.com/slamanna212/RunnerImages"
 
 githubConfigSecret: arc-github-pat
 
@@ -11,16 +11,11 @@ listenerTemplate:
     containers:
       - name: listener
 
-template:
-  spec:
-    containers:
-      - name: runner
-        image: "ghcr.io/slamanna212/runnerimages/slamanna-food:latest"
-        imagePullPolicy: Always
-        command: ["/home/runner/run.sh"]
+minRunners: 0
+maxRunners: 5
 
-minRunners: 1
-maxRunners: 10
+containerMode:
+  type: "dind"
 
 listenerMetrics:
   counters:

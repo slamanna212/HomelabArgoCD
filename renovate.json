@@ -18,6 +18,15 @@
       "registryUrlTemplate": "https://ghcr.io",
       "datasourceTemplate": "docker",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Track custom ARC runner image digests",
+      "managerFilePatterns": ["/^values/rapture-(?:apogee|matchexec|tonysofwestreading|slamanna-com|slamanna-food)\\.yaml$/"],
+      "matchStrings": ["image: \\\"ghcr\\.io/(?<depName>slamanna212/runnerimages/[^:\\\"@]+):(?<currentValue>[^\\s\\\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?\\\""],
+      "registryUrlTemplate": "https://ghcr.io",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
     }
   ],
   "packageRules": [
@@ -37,6 +46,19 @@
       "description": "Group all GitHub Actions runner updates together",
       "matchPackageNames": ["gha-runner-scale-set", "gha-runner-scale-set-controller"],
       "groupName": "arc runners"
+    },
+    {
+      "description": "Pin and group custom ARC runner image digests",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "slamanna212/runnerimages/apogee",
+        "slamanna212/runnerimages/matchexec",
+        "slamanna212/runnerimages/tonysofwestreading",
+        "slamanna212/runnerimages/slamanna-com",
+        "slamanna212/runnerimages/slamanna-food"
+      ],
+      "groupName": "custom arc runner images",
+      "pinDigests": true
     }
   ]
 }
