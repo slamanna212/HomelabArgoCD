@@ -44,7 +44,7 @@ spec:
                   name: dispatcharr-vpn-secret
                   key: wireguard-addresses
             - name: SERVER_HOSTNAMES
-              value: "us-qas-wg-306"
+              value: "us-qas-wg-203"
             - name: FIREWALL_OUTBOUND_SUBNETS
               value: "10.0.0.0/8,10.96.0.0/12"
             - name: HEALTH_SERVER_ADDRESS
