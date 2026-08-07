@@ -27,7 +27,7 @@ manifests/       # Raw K8s manifests (IngressRoutes, etc.), organized by subdire
 ## Cluster Infrastructure
 
 **Managed by Ansible (not in this repo):**
-- Cilium (CNI, replaces kube-proxy)
+- Cilium (CNI, kube-proxy replacement — kube-proxy itself is intentionally NOT installed; see note below)
 - MetalLB (bare-metal load balancer)
 - Longhorn (distributed storage)
 - ArgoCD itself
@@ -36,7 +36,18 @@ manifests/       # Raw K8s manifests (IngressRoutes, etc.), organized by subdire
 - Traefik (ingress controller) — Helm chart + IngressRoutes
 - All application workloads deployed on the cluster
 
-**Cluster topology:** 3 control-plane + 4 worker nodes
+**Cluster topology:** 3 control-plane + 3 worker nodes (one worker was removed 2026-07 — one worker VM per physical host, not one-worker-per-physical-host-times-N)
+
+**kube-proxy is deliberately absent.** Cilium runs with `kubeProxyReplacement=true`. kube-proxy
+shipped alongside it for the cluster's entire life (a leftover from kubeadm's default `addon all`
+phase) until removed 2026-07-22. Running both simultaneously caused a permanent bind conflict on
+every Service's `healthCheckNodePort` (Cilium's `loadbalancer-healthserver` vs kube-proxy fighting
+over the same port, logged continuously on every node) and intermittent conntrack desyncs on
+long-lived connections — this is what caused stream corruption on the Dispatcharr LoadBalancer
+service (`externalTrafficPolicy: Local`). `HomelabAnsible/K8sCluster.yml` now installs only the
+`coredns` addon subphase, not `addon all`, so kube-proxy won't reappear on a cluster rebuild. If
+you ever see `kubectl -n kube-system get ds kube-proxy` return anything, that's a regression —
+delete it and clean up its nftables table on each node.
 
 **Networking note:** kubeadm's `ClusterConfiguration` declares `podSubnet: 10.244.0.0/16`, but
 Cilium's actual pod IPAM is `cluster-pool-ipv4-cidr: 10.0.0.0/8` (Cilium's Helm install never set a
