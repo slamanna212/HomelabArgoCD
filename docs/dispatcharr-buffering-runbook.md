@@ -11,6 +11,56 @@ out *the way the tunnel is wired into the pod*.
 
 ---
 
+## Timeline — reconstructed from git and session history
+
+This matters more than any single config finding, because it shows the datacenter swaps were
+never a clean experiment.
+
+| Date | Event | Source |
+|---|---|---|
+| 2026-07-16 | gluetun VPN sidecar added to the web pod; four commits that day iterating on the killswitch and firewall ports | `c8d27d4`, `2d4dd20`, `cd3a189`, `9473abe` |
+| 2026-07-16 | "Configure Dispatcharr MAC address for UniFi routing" — the UniFi PBR approach that gluetun replaced | session |
+| 2026-07-29 | Dispatcharr 0.28.2 | `f9f5e78` |
+| 2026-08-06 | "Dispatcharr restart commands" — trouble already underway | session |
+| **2026-08-07 13:55** | **"Debug Cilium agent iptables reconciliation errors"** — kube-proxy found and removed, CLAUDE.md written **the same minute** | session `013G2Fqn`, commit `2f7cbfa` |
+| 2026-08-07 | VPN swap #1 → `us-qas-wg-203` | `c8f7479` |
+| 2026-08-08 | VPN swap #2 → `ca-tor-wg-203` | `da0511e` |
+| 2026-08-10 | Still buffering | — |
+
+**The Cilium/kube-proxy work and the VPN datacenter swaps happened in the same 24 hours.** The
+swaps were performed while the cluster datapath was actively being changed, so "we tried four
+datacenters and none helped" cannot distinguish between "the VPN is fine" and "something else
+was breaking streams the whole time."
+
+Three things about that 2026-08-07 session are worth knowing before trusting the fix:
+
+1. It ran on a different model, ended in a **`need_input`** state — literally *"let me know what
+   you actually want done"* — and was **archived unread**. It is not a record of completed work.
+2. Its only source repo was HomelabArgoCD. It could not have touched Ansible.
+3. The note it wrote says the removal happened 2026-07-22, but the note itself was committed
+   2026-08-07. Whatever the true removal date, the documentation of it is two weeks younger than
+   the event it describes.
+
+### The documentation and the repo disagree
+
+`HomelabArgoCD/CLAUDE.md` states:
+
+> `HomelabAnsible/K8sCluster.yml` now installs only the `coredns` addon subphase, not `addon all`,
+> so kube-proxy won't reappear on a cluster rebuild.
+
+That is **not true**. `HomelabAnsible/K8sCluster.yml:138` still reads:
+
+```yaml
+- name: Complete kubeadm init - addon
+  ansible.builtin.command: kubeadm init phase addon all --config /etc/kubernetes/kubeadm-config.yaml
+```
+
+The Ansible repo's most recent commit of any kind is 2026-07-04, and `K8sCluster.yml` has not
+been touched since 2026-05-07. The change was described as done, but never made. **This branch
+now makes it** — see the companion commit on `HomelabAnsible`.
+
+---
+
 ## 0. READ THIS BEFORE TESTING — ArgoCD will fight you
 
 `apps/dispatcharr.yaml` has:
@@ -47,6 +97,37 @@ Verify it actually took before you start: `kubectl -n argocd get application dis
 ## 1. Suspect list
 
 Ranked by (likelihood x how well it explains "changing datacenters didn't help").
+
+### T1-0 — Incomplete kube-proxy teardown (stale nftables + stale conntrack)
+
+**Now co-leading with the MTU theory, and cheaper to check, so check it first.**
+
+Deleting the kube-proxy DaemonSet stops it writing *new* rules. It does not remove the nftables
+and iptables tables it already wrote on each node, and it does not flush the conntrack entries
+those rules created. kube-proxy has an explicit `--cleanup` mode precisely because deleting it is
+not self-cleaning. `CLAUDE.md` even says so — *"delete it and clean up its nftables table on each
+node"* — which makes the cleanup a manual, per-node step, and manual per-node steps are exactly
+the kind that get done on the node you were looking at and not the other five.
+
+The consequences map onto this symptom exactly, and `CLAUDE.md` has already made the connection
+in writing:
+
+> intermittent conntrack desyncs on long-lived connections — this is what caused stream
+> corruption on the Dispatcharr LoadBalancer service (`externalTrafficPolicy: Local`)
+
+A live video stream *is* a long-lived connection. If residue remains on even one node, the
+symptom appears only when traffic transits that node — and with `externalTrafficPolicy: Local`
+plus MetalLB L2, which node that is depends on where the web pod happens to be scheduled. Every
+rollout during this investigation (image bumps, VPN host swaps, `set env`) rescheduled that pod.
+That produces buffering that comes and goes for no visible reason and follows no provider,
+no channel, and **no VPN datacenter**.
+
+It also explains why the Cilium errors were still being investigated on 2026-08-07 rather than on
+whatever date the DaemonSet was actually deleted.
+
+**Check:** `./scripts/kube-proxy-residue-check.sh` — cluster-wide plus per-node.
+**Decisive evidence:** any `kube-proxy` nftables table on any node, or any Cilium agent still
+logging bind failures. Either one outranks everything else in this document.
 
 ### T1-A — MTU mismatch: WireGuard stacked inside Cilium VXLAN
 
@@ -213,7 +294,28 @@ Record: does buffering hit **one channel or all channels at once**? Is it **peri
 Are the affected viewers **on the LAN or remote**? These three answers alone eliminate about half
 the suspect list.
 
-### Test 1 — MTU (highest value; do this first)
+### Step 0.5 — Verify the kube-proxy teardown actually finished (5 min, do this first)
+
+Cheapest decisive test in the document, and the one most likely to end the investigation.
+
+```bash
+./scripts/kube-proxy-residue-check.sh
+```
+
+The per-node section needs SSH or Semaphore. Run it against **every** node, control planes
+included — not just the worker currently hosting the pod.
+
+- **Any `kube-proxy` nftables table, or any Cilium agent still logging bind failures** → this is
+  your cause, or at minimum a cause. Clean it (commands are printed by the script), restart the
+  Cilium agent on that node, flush conntrack for `10.1.20.202`, and retest before touching
+  anything VPN-related.
+- **Clean everywhere, zero bind errors on every node** → the theory is genuinely retired and you
+  can move to Test 1 with confidence.
+
+Until this comes back clean, treat every other result tonight as unreliable — a node with stale
+NAT rules will corrupt streams underneath whatever else you are measuring.
+
+### Test 1 — MTU (highest value once step 0.5 is clean)
 
 The snapshot script prints the MTU chain and runs DF-set probes. Interpret:
 
@@ -373,6 +475,8 @@ Do not apply these blind — they are what to commit once a test confirms the ca
 
 | Suspect | Change | File |
 |---|---|---|
+| T1-0 | `kubeadm init phase addon coredns` instead of `addon all` — **done on this branch** | `HomelabAnsible/K8sCluster.yml` |
+| T1-0 | Correct the CLAUDE.md claim once the Ansible change is merged, and record which nodes were actually cleaned | `CLAUDE.md` |
 | T1-A | `WIREGUARD_MTU: "1320"` on gluetun | `deployment-web.yaml` |
 | T1-B | `resources.requests` on gluetun (e.g. 200m/128Mi); raise or drop web `limits.cpu` | `deployment-web.yaml` |
 | T1-C | Cap celery concurrency; longer M3U/EPG refresh interval | Dispatcharr UI / celery env |
