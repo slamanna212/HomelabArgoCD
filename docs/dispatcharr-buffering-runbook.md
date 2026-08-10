@@ -22,7 +22,7 @@ never a clean experiment.
 | 2026-07-16 | "Configure Dispatcharr MAC address for UniFi routing" — the UniFi PBR approach that gluetun replaced | session |
 | 2026-07-29 | Dispatcharr 0.28.2 | `f9f5e78` |
 | 2026-08-06 | "Dispatcharr restart commands" — trouble already underway | session |
-| **2026-08-07 13:55** | **"Debug Cilium agent iptables reconciliation errors"** — kube-proxy found and removed, CLAUDE.md written **the same minute** | session `013G2Fqn`, commit `2f7cbfa` |
+| **2026-08-07 13:55–15:22** | **"Debug Cilium agent iptables reconciliation errors"** — kube-proxy removed and **ip rules cleaned by hand on each Kubernetes host**; CLAUDE.md written the same minute the session opened | session `013G2Fqn`, commit `2f7cbfa` |
 | 2026-08-07 | VPN swap #1 → `us-qas-wg-203` | `c8f7479` |
 | 2026-08-08 | VPN swap #2 → `ca-tor-wg-203` | `da0511e` |
 | 2026-08-10 | Still buffering | — |
@@ -32,14 +32,14 @@ swaps were performed while the cluster datapath was actively being changed, so "
 datacenters and none helped" cannot distinguish between "the VPN is fine" and "something else
 was breaking streams the whole time."
 
-Three things about that 2026-08-07 session are worth knowing before trusting the fix:
+Two things about that 2026-08-07 session still matter:
 
-1. It ran on a different model, ended in a **`need_input`** state — literally *"let me know what
-   you actually want done"* — and was **archived unread**. It is not a record of completed work.
-2. Its only source repo was HomelabArgoCD. It could not have touched Ansible.
-3. The note it wrote says the removal happened 2026-07-22, but the note itself was committed
-   2026-08-07. Whatever the true removal date, the documentation of it is two weeks younger than
-   the event it describes.
+1. Its only source repo was HomelabArgoCD, so it could not have touched Ansible — which is why
+   the Ansible change its own note describes was never made (below).
+2. No transcript is retained, only metadata, and the session was archived in a `need_input`
+   state. The per-node ip-rule cleanup is confirmed by the operator, not by the record — so
+   *which* nodes were touched and *what* was removed is not written down anywhere. That is worth
+   fixing in CLAUDE.md regardless of tonight's outcome.
 
 ### The documentation and the repo disagree
 
@@ -98,36 +98,40 @@ Verify it actually took before you start: `kubectl -n argocd get application dis
 
 Ranked by (likelihood x how well it explains "changing datacenters didn't help").
 
-### T1-0 — Incomplete kube-proxy teardown (stale nftables + stale conntrack)
+### T1-0 — Node datapath asymmetry after the manual per-node ip-rule cleanup
 
-**Now co-leading with the MTU theory, and cheaper to check, so check it first.**
+**Correction from an earlier draft of this document:** I initially ranked "incomplete kube-proxy
+teardown" as a co-leading suspect on the theory that the per-node cleanup might never have
+happened. The operator confirms it did — ip rules were cleaned by hand on each Kubernetes host
+during the 2026-08-07 session (which ran ~90 minutes, consistent with that work). **That theory
+is retired.** What replaces it is narrower and follows directly from *how* the fix was applied.
 
-Deleting the kube-proxy DaemonSet stops it writing *new* rules. It does not remove the nftables
-and iptables tables it already wrote on each node, and it does not flush the conntrack entries
-those rules created. kube-proxy has an explicit `--cleanup` mode precisely because deleting it is
-not self-cleaning. `CLAUDE.md` even says so — *"delete it and clean up its nftables table on each
-node"* — which makes the cleanup a manual, per-node step, and manual per-node steps are exactly
-the kind that get done on the node you were looking at and not the other five.
+Note what was cleaned: **`ip rule` entries are policy routing, and kube-proxy does not create
+them. Cilium does.** So the cleanup was operating on rules that plausibly belonged to Cilium — or
+to an older Cilium configuration — on six hosts, by hand, one at a time.
 
-The consequences map onto this symptom exactly, and `CLAUDE.md` has already made the connection
-in writing:
+The risk is not residue. It is **asymmetry**: five nodes ending in one state and one node in
+another, either because the edit was applied slightly differently somewhere, or because Cilium
+re-added what it needed on the nodes whose agent happened to restart afterward and not on the
+others. A node missing a `CILIUM_*` chain or an fwmark-based lookup rule has a subtly degraded
+datapath.
 
-> intermittent conntrack desyncs on long-lived connections — this is what caused stream
-> corruption on the Dispatcharr LoadBalancer service (`externalTrafficPolicy: Local`)
+That produces buffering **that depends on which node the web pod is scheduled on** — which looks
+exactly like a flaky provider or a bad VPN exit, and is invariant to both. Every rollout during
+this investigation (image bumps, VPN host swaps, `set env`) rescheduled that pod, so the symptom
+would appear to wander for no visible reason.
 
-A live video stream *is* a long-lived connection. If residue remains on even one node, the
-symptom appears only when traffic transits that node — and with `externalTrafficPolicy: Local`
-plus MetalLB L2, which node that is depends on where the web pod happens to be scheduled. Every
-rollout during this investigation (image bumps, VPN host swaps, `set env`) rescheduled that pod.
-That produces buffering that comes and goes for no visible reason and follows no provider,
-no channel, and **no VPN datacenter**.
+**Check:** `./scripts/node-datapath-compare.sh`. It does not hunt for residue — it collects
+`ip rule`, routing tables, iptables chains, nft tables and link state from every node and **diffs
+them against each other**. No SSH required: the Cilium agent runs hostNetwork + privileged, so
+`kubectl exec` into it reads the host's own rules.
 
-It also explains why the Cilium errors were still being investigated on 2026-08-07 rather than on
-whatever date the DaemonSet was actually deleted.
+**Decisive evidence:** any node whose datapath differs from the others, any Cilium agent still
+logging bind or reconcile errors, or a `healthCheckNodePort` health server not answering 200 on
+the pod's node and 503 everywhere else.
 
-**Check:** `./scripts/kube-proxy-residue-check.sh` — cluster-wide plus per-node.
-**Decisive evidence:** any `kube-proxy` nftables table on any node, or any Cilium agent still
-logging bind failures. Either one outranks everything else in this document.
+**If all nodes are identical and error counts are zero,** this entire line of inquiry is closed —
+including the original kube-proxy question — and the MTU test is where tonight should go.
 
 ### T1-A — MTU mismatch: WireGuard stacked inside Cilium VXLAN
 
@@ -294,26 +298,21 @@ Record: does buffering hit **one channel or all channels at once**? Is it **peri
 Are the affected viewers **on the LAN or remote**? These three answers alone eliminate about half
 the suspect list.
 
-### Step 0.5 — Verify the kube-proxy teardown actually finished (5 min, do this first)
+### Step 0.5 — Confirm all six nodes are identical (5 min, do this first)
 
-Cheapest decisive test in the document, and the one most likely to end the investigation.
+Cheap, fully automated, no SSH. Not because residue is likely — you cleaned it — but because the
+cleanup was six manual per-host edits, and "did they all land the same way" is a question worth
+five minutes before spending the night on the VPN.
 
 ```bash
-./scripts/kube-proxy-residue-check.sh
+./scripts/node-datapath-compare.sh
 ```
 
-The per-node section needs SSH or Semaphore. Run it against **every** node, control planes
-included — not just the worker currently hosting the pod.
-
-- **Any `kube-proxy` nftables table, or any Cilium agent still logging bind failures** → this is
-  your cause, or at minimum a cause. Clean it (commands are printed by the script), restart the
-  Cilium agent on that node, flush conntrack for `10.1.20.202`, and retest before touching
-  anything VPN-related.
-- **Clean everywhere, zero bind errors on every node** → the theory is genuinely retired and you
-  can move to Test 1 with confidence.
-
-Until this comes back clean, treat every other result tonight as unreliable — a node with stale
-NAT rules will corrupt streams underneath whatever else you are measuring.
+- **All nodes identical, zero bind/reconcile errors, health server answering correctly** → node
+  state is ruled out. Go to Test 1 and don't look back.
+- **Any node differs** → read the diff. A missing `CILIUM_*` chain or a missing fwmark lookup
+  rule on one node means streams buffer whenever the web pod lands there. Restart that node's
+  Cilium agent to let it re-reconcile, re-run the compare, and retest before touching the VPN.
 
 ### Test 1 — MTU (highest value once step 0.5 is clean)
 
@@ -475,8 +474,8 @@ Do not apply these blind — they are what to commit once a test confirms the ca
 
 | Suspect | Change | File |
 |---|---|---|
-| T1-0 | `kubeadm init phase addon coredns` instead of `addon all` — **done on this branch** | `HomelabAnsible/K8sCluster.yml` |
-| T1-0 | Correct the CLAUDE.md claim once the Ansible change is merged, and record which nodes were actually cleaned | `CLAUDE.md` |
+| T1-0 | `kubeadm init phase addon coredns` instead of `addon all` — **done on this branch**; stops kube-proxy returning on a rebuild | `HomelabAnsible/K8sCluster.yml` |
+| T1-0 | Record in CLAUDE.md exactly which nodes had ip rules cleaned on 2026-08-07 and what was removed, so the next incident doesn't have to re-derive it | `CLAUDE.md` |
 | T1-A | `WIREGUARD_MTU: "1320"` on gluetun | `deployment-web.yaml` |
 | T1-B | `resources.requests` on gluetun (e.g. 200m/128Mi); raise or drop web `limits.cpu` | `deployment-web.yaml` |
 | T1-C | Cap celery concurrency; longer M3U/EPG refresh interval | Dispatcharr UI / celery env |
