@@ -49,6 +49,14 @@ spec:
               value: "10.0.0.0/8,10.96.0.0/12"
             - name: HEALTH_SERVER_ADDRESS
               value: "0.0.0.0:9999"
+            # Do NOT re-enable without reading the note in CLAUDE.md. gluetun's health
+            # checks (TCP+TLS dial every 5m, ICMP ping every 1m) time out when live
+            # streaming saturates the tunnel, and the "cure" is to tear the tunnel down —
+            # which kills every in-flight provider connection and causes the buffering it
+            # was reacting to. Checks still run and still log with this off; only the
+            # destructive restart is disabled.
+            - name: HEALTH_RESTART_VPN
+              value: "off"
             - name: FIREWALL_INPUT_PORTS
               value: "9999,9191,9192"
           startupProbe:

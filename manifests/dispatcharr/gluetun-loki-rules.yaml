@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-gluetun-rules
+  namespace: monitoring
+  labels:
+    loki_rule: "1"
+data:
+  gluetun-alerts.yaml: |
+    groups:
+      - name: dispatcharr-gluetun
+        interval: 1m
+        rules:
+          # The blind spot that let this run for weeks: gluetun restarts the WireGuard
+          # tunnel INTERNALLY, without restarting the container. The pod stays Running
+          # with RESTARTS=0, no Kubernetes event fires, and no existing alert notices —
+          # while every in-flight provider connection is severed. On 2026-08-10 this
+          # happened 20 times in a day and nothing anywhere reported it.
+          - alert: GluetunTunnelRestarting
+            expr: |
+              sum(count_over_time(
+                {namespace="dispatcharr", container="gluetun"} |= "[vpn] starting" [15m]
+              )) > 1
+            for: 0s
+            labels:
+              severity: warning
+              app: dispatcharr
+            annotations:
+              summary: "Dispatcharr VPN tunnel is cycling"
+              description: >-
+                The gluetun WireGuard tunnel restarted {{ $value }} times in 15 minutes.
+                Every restart drops all provider connections and causes viewer buffering.
+                The pod will still show RESTARTS=0 — check the gluetun container logs, not
+                the pod status.
+
+          # With HEALTH_RESTART_VPN=off the checks still run and still log, they just no
+          # longer tear the tunnel down. This tracks how often they WOULD have fired, so
+          # the underlying flakiness stays visible instead of being silently suppressed.
+          - alert: GluetunHealthCheckFailing
+            expr: |
+              sum(count_over_time(
+                {namespace="dispatcharr", container="gluetun"} |= "timed out waiting for ICMP echo reply" [30m]
+              )) > 20
+            for: 5m
+            labels:
+              severity: info
+              app: dispatcharr
+            annotations:
+              summary: "Dispatcharr VPN health checks are timing out"
+              description: >-
+                {{ $value }} health-check timeouts in 30 minutes. Not itself harmful while
+                HEALTH_RESTART_VPN is off, but it measures how starved the tunnel is under
+                streaming load. Sustained high counts mean the tunnel is genuinely
+                congested rather than the check being oversensitive.
