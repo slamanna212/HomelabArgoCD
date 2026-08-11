@@ -1,0 +1,210 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes
+  namespace: hermes
+spec:
+  replicas: 1
+  # Hermes keeps mutable state (sessions DB, skills, memory, config) under
+  # HERMES_HOME on a ReadWriteOnce PVC and is a strict single-writer. Two pods
+  # against the same home corrupt lock files and gateway_state.json, so never
+  # scale this past 1 and never let a rolling update run two pods at once.
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+  selector:
+    matchLabels:
+      app: hermes
+  template:
+    metadata:
+      labels:
+        app: hermes
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        # Both upstream images start their entrypoint as root to align UID/GID and
+        # prepare mounts, then drop to an unprivileged user (1000). We pre-create and
+        # chown the PVC subdirectories here so that drop actually lands on writable
+        # dirs — fsGroup alone leaves root-created dirs at mode 755, which is r-x for
+        # the group and leaves the agent unable to write its own home.
+        - name: prepare
+          image: nousresearch/hermes-agent:v2026.8.3
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              # The WebUI installs the agent's Python deps from a copy of the agent
+              # source at startup. Upstream's compose shares /opt/hermes as a named
+              # Docker volume, which famously goes stale after an agent image bump
+              # (the volume is only initialised on first `up`). Copying into an
+              # emptyDir instead means it is repopulated from the image on every pod
+              # start, so that whole class of upgrade bug does not exist here.
+              cp -a /opt/hermes/. /agent-src/
+
+              mkdir -p /data/home /data/workspace
+              chown 1000:1000 /data/home /data/workspace
+
+              # Seed config.yaml exactly once. Hermes rewrites this file at runtime
+              # (model switching from the WebUI, onboarding), so re-copying it on
+              # every restart would silently revert those changes.
+              if [ ! -f /data/home/config.yaml ]; then
+                cp /bootstrap/config.yaml /data/home/config.yaml
+                chown 1000:1000 /data/home/config.yaml
+                echo "seeded config.yaml from ConfigMap"
+              else
+                echo "config.yaml already exists on the PVC; leaving it untouched"
+              fi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: agent-src
+              mountPath: /agent-src
+            - name: bootstrap
+              mountPath: /bootstrap
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      containers:
+        # The gateway process: Discord, cron/scheduled jobs, and the agent API on
+        # 8642. This is what keeps working while you are away — the WebUI alone
+        # cannot tick scheduled jobs.
+        - name: hermes-agent
+          image: nousresearch/hermes-agent:v2026.8.3
+          args:
+            - gateway
+            - run
+          env:
+            - name: HERMES_HOME
+              value: /home/hermes/.hermes
+            - name: HERMES_UID
+              value: "1000"
+            - name: HERMES_GID
+              value: "1000"
+            # Without an explicit allowlist any Discord user who can see the bot
+            # could drive an agent that has a shell in your cluster. Keep this false.
+            - name: GATEWAY_ALLOW_ALL_USERS
+              value: "false"
+            # REQUIRED: your numeric Discord user ID (Discord → Settings → Advanced →
+            # Developer Mode, then right-click your name → Copy User ID). Comma-separate
+            # for more than one. Left as a placeholder deliberately: an empty value
+            # would look like a working config while silently letting nobody in.
+            - name: DISCORD_ALLOWED_USERS
+              value: "REPLACE_WITH_YOUR_DISCORD_USER_ID"
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: openrouter-api-key
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: discord-bot-token
+          volumeMounts:
+            - name: data
+              mountPath: /home/hermes/.hermes
+              subPath: home
+            - name: data
+              mountPath: /workspace
+              subPath: workspace
+            # Chromium for the agent's browser tools needs more than the default 64Mi.
+            - name: dshm
+              mountPath: /dev/shm
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+        # The web UI that the Hermex iPhone app talks to. Shares HERMES_HOME with the
+        # gateway above, which is how the two see the same sessions and memory.
+        - name: hermes-webui
+          image: ghcr.io/nesquena/hermes-webui:0.51.680
+          env:
+            - name: HERMES_WEBUI_HOST
+              value: "0.0.0.0"
+            - name: HERMES_WEBUI_PORT
+              value: "8787"
+            - name: HERMES_WEBUI_STATE_DIR
+              value: /home/hermeswebui/.hermes/webui
+            # Same pod, so the gateway is on loopback rather than a service name.
+            # Drives the Tasks/System "gateway" status and scheduled-job ticking.
+            - name: HERMES_API_URL
+              value: http://127.0.0.1:8642
+            - name: WANTED_UID
+              value: "1000"
+            - name: WANTED_GID
+              value: "1000"
+            # Everything on the LAN can reach this service's IP directly, so this
+            # password is the only thing in front of the agent. It is also the
+            # password Hermex asks for.
+            - name: HERMES_WEBUI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: webui-password
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: openrouter-api-key
+          ports:
+            - name: http
+              containerPort: 8787
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /home/hermeswebui/.hermes
+              subPath: home
+            # Read-only on purpose: the WebUI only reads this to `uv pip install` the
+            # agent's dependencies, so a compromised WebUI cannot rewrite agent code.
+            - name: agent-src
+              mountPath: /home/hermeswebui/.hermes/hermes-agent
+              readOnly: true
+            - name: data
+              mountPath: /workspace
+              subPath: workspace
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            # Generous: first boot installs the agent's Python deps from the shared
+            # source copy before /health answers.
+            initialDelaySeconds: 300
+            periodSeconds: 30
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+      terminationGracePeriodSeconds: 120
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: hermes-data
+        - name: agent-src
+          emptyDir: {}
+        - name: bootstrap
+          configMap:
+            name: hermes-config
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
