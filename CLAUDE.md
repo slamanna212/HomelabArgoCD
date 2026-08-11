@@ -67,6 +67,7 @@ trust the kubeadm-config podSubnet value for anything Cilium-related.
 
 - **traefik** — Ingress controller (Helm chart) in `traefik` namespace
 - **kube-prometheus-stack** — Monitoring (Prometheus, Grafana, Alertmanager, node-exporter, kube-state-metrics) in `monitoring` namespace
+- **hermes** — Hermes Agent (Nous Research) + Hermes WebUI in `hermes` namespace
 - **manifests** — Raw K8s manifests (IngressRoutes for all UIs)
 
 ## Dispatcharr VPN Egress
@@ -152,6 +153,60 @@ gluetun container, because Kubernetes Pods share one network namespace. Any port
 reachable — Dispatcharr's `9191`, and gluetun's own health-check port `9999` used by the
 `startupProbe` — must be listed in `FIREWALL_INPUT_PORTS` on the gluetun container, or it gets
 silently dropped. If a future port gets added to this pod, add it there too.
+
+## Hermes Agent
+
+Nous Research's self-hosted agent (`workloads/hermes/`), reached on **10.1.20.205:8787** — its own
+MetalLB IP, deliberately *not* behind Traefik. LAN/VPN access only; no tunnel, no public exposure.
+
+**One pod, two containers, one PVC.** This mirrors upstream's `docker-compose.two-container.yml`:
+
+- `hermes-agent` (`gateway run`) — Discord bot, scheduled/cron jobs, agent API on `8642`. This is
+  the half that keeps working while you're away; the WebUI alone cannot tick scheduled jobs.
+- `hermes-webui` (port `8787`) — the browser UI, and the backend the **Hermex** iPhone app talks
+  to. Hermex does *not* speak to the agent directly; it drives hermes-webui, a separate
+  third-party project (`nesquena/hermes-webui`), which is why that container exists at all.
+
+They share `HERMES_HOME` (PVC subPath `home`) — that shared directory is the only reason the two
+see the same sessions, memory and skills. They are in one pod rather than two Deployments because
+Longhorn is ReadWriteOnce: two pods cannot mount that PVC unless they land on the same node.
+
+**Never scale past 1 replica.** Hermes is a strict single-writer over `HERMES_HOME`; a second
+writer corrupts lock files and `gateway_state.json`. Strategy is `Recreate` so a rolling update
+can't briefly run two pods.
+
+**`config.yaml` is seeded once, not managed.** The `prepare` initContainer copies it from the
+`hermes-config` ConfigMap only if it does not already exist on the PVC. Hermes rewrites its own
+config at runtime (model switching from the WebUI, onboarding), so re-copying on every restart
+would silently revert whatever you changed in the app. **Editing the ConfigMap does not affect a
+running install** — change the model in the WebUI, or delete `home/config.yaml` off the PVC and
+restart to force a reseed.
+
+**Both images must start as root.** Their entrypoints do UID/GID alignment and mount prep, then
+re-exec as uid 1000. So no `runAsNonRoot`/`readOnlyRootFilesystem` here — the WebUI additionally
+`uv pip install`s the agent's dependencies into its own filesystem at boot. The `prepare`
+initContainer chowns `home/` and `workspace/` to 1000 because `fsGroup` alone leaves root-created
+directories at mode 755 (group r-x), which leaves the agent unable to write its own home.
+
+**The agent source is an emptyDir, not a shared volume.** The WebUI installs the agent's Python
+deps from a copy of `/opt/hermes`. Upstream shares it as a named Docker volume that only
+initialises on first `up`, so it goes stale after an agent image bump and needs manual deletion.
+Copying it into an emptyDir on every pod start means that upgrade footgun doesn't exist here.
+
+**Image tags:** the community Helm chart for this app defaults to `nousresearch/hermes-agent:0.8.0`,
+which **does not exist** on Docker Hub — real tags are calendar-versioned (`v2026.8.3`). We don't
+use that chart, but don't trust `0.8.x` version numbers from its docs either. `hermes-webui` ships
+hundreds of patch releases, so Renovate batches both images weekly as the `hermes agent` group.
+
+**Access control is one password.** Anything on the LAN can hit 10.1.20.205:8787 directly, so
+`HERMES_WEBUI_PASSWORD` is the only thing in front of an agent that has a shell, a browser, and
+your OpenRouter key. Discord access is separately gated by `DISCORD_ALLOWED_USERS` with
+`GATEWAY_ALLOW_ALL_USERS=false`; an empty allowlist locks everyone out rather than letting
+everyone in. `browser.allow_private_urls` is `false` to keep the agent's browser off internal
+admin UIs — this pod sits on the cluster network with reach into the rest of the LAN.
+
+Secrets (`hermes-secrets`) come from Azure Key Vault: `hermes-openrouter-api-key`,
+`hermes-discord-bot-token`, `hermes-webui-password`.
 
 ## Traefik Entrypoints & UI Access
 

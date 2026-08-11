@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-config
+  namespace: hermes
+data:
+  # SEED ONLY. The seed-config initContainer copies this to $HERMES_HOME/config.yaml
+  # exactly once — only if the file does not already exist on the PVC. Hermes rewrites
+  # its own config at runtime (switching models from the WebUI, onboarding, skill
+  # settings), so overwriting on every restart would silently revert whatever you did
+  # in the app. Editing this ConfigMap therefore does NOT change a running install.
+  #
+  # To force a reseed after changing this file:
+  #   kubectl -n hermes scale deploy/hermes --replicas=0
+  #   kubectl -n hermes debug ... (or exec a temp pod) and delete /opt/data/home/config.yaml
+  #   kubectl -n hermes scale deploy/hermes --replicas=1
+  # Or just edit the live config from the WebUI, which is usually what you want.
+  config.yaml: |
+    model:
+      # OpenRouter model slug. Change from the WebUI composer footer or by editing
+      # config.yaml on the PVC — this ConfigMap is not re-read after first seed.
+      default: deepseek/deepseek-v4-flash-0731
+      provider: auto
+      base_url: https://openrouter.ai/api/v1
+    agent:
+      max_turns: 90
+      gateway_timeout: 1800
+      restart_drain_timeout: 60
+      tool_use_enforcement: auto
+    terminal:
+      # Shell commands run inside this pod's own container.
+      backend: local
+      cwd: /workspace
+      timeout: 180
+    display:
+      tool_progress: all
+      interim_assistant_messages: true
+    browser:
+      inactivity_timeout: 120
+      command_timeout: 30
+      # Keep the agent's browser off RFC1918 addresses. This pod sits on the cluster
+      # network with reach into the rest of the LAN; flipping this to true lets the
+      # agent browse your internal admin UIs.
+      allow_private_urls: false
+    compression:
+      enabled: true
+      threshold: 0.5
+      target_ratio: 0.2
+      protect_last_n: 20
+    security:
+      redact_secrets: true
+      tirith_enabled: true
+      tirith_fail_open: true

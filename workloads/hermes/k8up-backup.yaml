@@ -1,0 +1,65 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: b2-credentials
+  namespace: hermes
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: azure-keyvault
+    kind: ClusterSecretStore
+  target:
+    name: b2-credentials
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  data:
+    - secretKey: keyId
+      remoteRef:
+        key: b2-key-id
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None
+    - secretKey: appKey
+      remoteRef:
+        key: b2-app-key
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None
+    - secretKey: resticPassword
+      remoteRef:
+        key: b2-restic-password
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None
+---
+apiVersion: k8up.io/v1
+kind: Schedule
+metadata:
+  name: hermes-backup
+  namespace: hermes
+spec:
+  backend:
+    repoPasswordSecretRef:
+      name: b2-credentials
+      key: resticPassword
+    s3:
+      endpoint: https://s3.us-east-005.backblazeb2.com
+      bucket: rapturek8up/hermes
+      accessKeyIDSecretRef:
+        name: b2-credentials
+        key: keyId
+      secretAccessKeySecretRef:
+        name: b2-credentials
+        key: appKey
+  backup:
+    schedule: "0 2 * * *"
+    keepJobs: 3
+  check:
+    schedule: "0 3 * * 0"
+    keepJobs: 1
+  prune:
+    schedule: "0 4 * * 0"
+    keepJobs: 1
+    retention:
+      keepLast: 7
+      keepWeekly: 4
