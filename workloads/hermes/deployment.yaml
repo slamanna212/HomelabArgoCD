@@ -121,6 +121,21 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: discord-bot-token
+            # Starts the gateway's HTTP API on 127.0.0.1:8642 (its defaults), which is
+            # what the WebUI's Tasks/cron health probe checks. Counter-intuitively there
+            # is no API_SERVER_ENABLED to set: gateway/config.py enrolls the platform
+            # only when API_SERVER_KEY is present and at least 16 characters, because
+            # "API_SERVER_ENABLED alone would load an unauthenticated platform whose
+            # adapter refuses to start at connect()". Without this nothing binds 8642 and
+            # the WebUI shows "Hermes agent is not responding" / "gateway endpoint not
+            # reachable" while chat still works, since chat runs the agent in-process.
+            # 127.0.0.1 keeps it inside the pod's network namespace — the WebUI reaches
+            # it over loopback, nothing outside the pod can.
+            - name: API_SERVER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: api-server-key
           volumeMounts:
             - name: data
               mountPath: /home/hermes/.hermes
@@ -162,6 +177,14 @@ spec:
             # Same pod, so the gateway is on loopback rather than a service name.
             # Drives the Tasks/System "gateway" status and scheduled-job ticking.
             - name: HERMES_API_URL
+              value: http://127.0.0.1:8642
+            # api/agent_health.py honours HERMES_API_URL, but api/updates.py (agent
+            # version display) reads only these two and otherwise defaults to
+            # http://hermes-agent:8642 — a compose service name that does not resolve
+            # in a single pod. Set them so every gateway probe points at loopback.
+            - name: GATEWAY_HEALTH_URL
+              value: http://127.0.0.1:8642
+            - name: HERMES_GATEWAY_HEALTH_URL
               value: http://127.0.0.1:8642
             - name: WANTED_UID
               value: "1000"
