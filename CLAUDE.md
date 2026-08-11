@@ -77,19 +77,44 @@ internet traffic through a VPN, independent of which node it's scheduled on (Uni
 usable here — pods have no stable MAC/L2 identity on the LAN). Configured via `SERVER_HOSTNAMES`
 in `workloads/dispatcharr/deployment-web.yaml`:
 
-- Current: `us-qas-wg-203` (Ashburn, VA) — set 2026-08-11
-- Canada override (use for up to ~24h): `ca-tor-wg-203` (Toronto — Tzulo, 10 Gbps)
-- ~~`us-qas-wg-306`~~ — the original value from 2026-07-16, **no longer selectable**, see below
+**The endpoint is pinned by IP, not selected by hostname.** `VPN_SERVICE_PROVIDER=custom` with
+`WIREGUARD_ENDPOINT_IP` / `WIREGUARD_ENDPOINT_PORT` / `WIREGUARD_PUBLIC_KEY`. Current:
 
-**A hostname that is not in gluetun's embedded server list hard-fails the pod.** gluetun exits
-with `the hostname specified is not valid: value is not one of the possible choices` and prints
-every valid name; the killswitch means Dispatcharr goes down with it. `us-qas-wg-306` worked
-before 2026-08-11 only because the image was untagged (`:latest`), so every pull fetched a master
-build with a fresher list — pinning to `v3.41.3` was right for other reasons but froze the server
-list along with the code. **Validate any new value against the list in that error message before
-committing it.** As of v3.41.3 the Ashburn choices are `us-qas-wg-001/002/003/004`,
-`-101/102/103`, `-201/202/203/204`. To get newer servers you would have to bump the image or
-enable gluetun's updater, not just edit this field.
+- `us-qas-wg-306` — Ashburn VA, Tzulo, 20 Gbps, `23.234.98.127:51820`
+
+To change relays, get the IPv4 and key straight from Mullvad's API rather than trusting any list:
+
+```bash
+curl -sL https://api.mullvad.net/www/relays/wireguard/ | jq -r '.[] | select(.hostname|startswith("us-qas-wg")) | "\(.hostname) \(.ipv4_addr_in) \(.pubkey) \(.network_port_speed)G \(.provider) active=\(.active)"'
+```
+
+**Why pinned, rather than `SERVER_HOSTNAMES`.** That field took Dispatcharr fully down twice on
+2026-08-11 — the killswitch means any gluetun startup failure keeps the whole pod down:
+
+1. **Stale embedded list.** gluetun compiles a server list into the image. `v3.41.3`'s does not
+   contain `us-qas-wg-306`, so gluetun exits with `the hostname specified is not valid`. The relay
+   is live — Mullvad's API lists it active — the *image* is out of date. It worked before 08-11
+   only because the image was untagged (`:latest`) and every pull fetched a master build with a
+   fresher list. Pinning the image, correct for other reasons, froze the server list with it.
+2. **IPv6 selection.** `us-qas-wg-203` is in that list, but gluetun chose its IPv6 endpoint
+   `[2a01:4740:1::f201]:51820`. **This cluster is IPv4 only**, so every dial timed out and the
+   tunnel never established. Nothing in the config forces v4 — pinning the IP is what prevents it.
+
+Pinning bypasses both: no list lookup, no address-family choice. The cost is that a Mullvad key or
+address rotation breaks the tunnel instead of being absorbed, so re-check the API if it ever fails
+to hand shake.
+
+`23.234.98.127` is also deliberately **not** `23.234.85.2` (`ca-tor-wg-203`) — that is the endpoint
+the UniFi gateway's own `wgclt1` uses, and sharing it puts two WireGuard flows to one peer through
+one gateway. See the T0 section of `docs/dispatcharr-buffering-runbook.md`.
+
+**After any change here, check what actually got dialled:**
+
+```bash
+kubectl -n dispatcharr logs deploy/dispatcharr-web -c gluetun --tail=30 | grep -E 'Connecting to|not valid'
+```
+
+A bracketed address is IPv6 and will not work.
 
 **Do not treat `ca-tor-wg-203` as a neutral choice.** It resolves to `23.234.85.2:51820` — the
 identical endpoint IP *and* port used by the UniFi gateway's own Mullvad WireGuard client
