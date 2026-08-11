@@ -41,6 +41,14 @@ spec:
               # emptyDir instead means it is repopulated from the image on every pod
               # start, so that whole class of upgrade bug does not exist here.
               cp -a /opt/hermes/. /agent-src/
+              # cp -a preserves ownership and modes, and this runs as root. The agent
+              # image ships owner-only-readable files under .playwright/, so the copy
+              # came out unreadable to the WebUI, which runs as uid 1000 and rsyncs
+              # this whole tree into a writable build dir before installing its deps.
+              # That rsync died on "Permission denied" and took the container with it.
+              # Hand the copy to 1000 and guarantee it can traverse and read it.
+              chown -R 1000:1000 /agent-src
+              chmod -R u+rX /agent-src
 
               mkdir -p /data/home /data/workspace
               chown 1000:1000 /data/home /data/workspace
