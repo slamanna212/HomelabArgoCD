@@ -193,6 +193,18 @@ deps from a copy of `/opt/hermes`. Upstream shares it as a named Docker volume t
 initialises on first `up`, so it goes stale after an agent image bump and needs manual deletion.
 Copying it into an emptyDir on every pod start means that upgrade footgun doesn't exist here.
 
+**hermes-webui is pinned to an experimental tag on purpose.** Every stable release, up to
+and including the newest (`v0.52.106`), installs the agent with
+`uv pip install "$_stage_src[all]"` — not editable. That takes the PEP 517 `build_wheel`
+path to `bdist_wheel`, and the agent's `setup.py` raises deliberately: *"Building wheels or
+sdists for hermes-agent is not supported"* (a wheel would ship without its bundled locales,
+skills, optional-mcps, `web_dist`, `tui_dist` and plugin manifests). The container then exits
+1 with no useful message and crash-loops. `uv pip install -e` first appears in
+`exp-v0.52.159`, so **no stable release currently works in a two-container setup**. Don't
+"correct" the tag back to stable; re-check with
+`curl -sS https://raw.githubusercontent.com/nesquena/hermes-webui/<tag>/docker_init.bash | grep 'uv pip install.*_stage_src'`
+before moving it.
+
 **Image tags:** the community Helm chart for this app defaults to `nousresearch/hermes-agent:0.8.0`,
 which **does not exist** on Docker Hub — real tags are calendar-versioned (`v2026.8.3`). We don't
 use that chart, but don't trust `0.8.x` version numbers from its docs either. `hermes-webui` ships
@@ -246,6 +258,15 @@ This creates the root Application in ArgoCD, which discovers and syncs all apps 
 4. **If the app uses a PVC**, create a k8up `Schedule` manifest in `manifests/k8up/<app-name>-backup.yaml` to configure backups
 5. **Always** add the new Helm chart to `renovate.json` `packageRules` if it should be grouped, or verify the ArgoCD manager in `renovate.json` will auto-detect it (charts referenced in `apps/` are auto-discovered)
 6. Commit and push to `main` — ArgoCD auto-syncs
+
+## Debugging Rule
+
+**Verify before changing.** Diagnose from the actual failure output — container logs, the
+upstream source of whatever is failing, the real image tags — not from a plausible-sounding
+theory. A fix pushed on an unverified hypothesis costs a full sync cycle and buries the real
+cause. If the evidence to confirm a cause isn't in hand, get that evidence first and say
+plainly that the cause is still unknown. Assumptions stated as conclusions have repeatedly
+made incidents in this repo take longer than they needed to.
 
 ## Notes
 

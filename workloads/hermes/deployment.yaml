@@ -141,7 +141,17 @@ spec:
         # The web UI that the Hermex iPhone app talks to. Shares HERMES_HOME with the
         # gateway above, which is how the two see the same sessions and memory.
         - name: hermes-webui
-          image: ghcr.io/nesquena/hermes-webui:0.51.680
+          # DELIBERATELY on the experimental channel. Do not "fix" this back to a
+          # stable tag — every stable release, including the newest (v0.52.106),
+          # installs the agent with `uv pip install "$_stage_src[all]"`, i.e. NOT
+          # editable. That drives PEP 517 build_wheel -> bdist_wheel, and the agent's
+          # setup.py raises on purpose:
+          #   RuntimeError: Building wheels or sdists for hermes-agent is not supported
+          # (the wheel would ship without its bundled locales/skills/web_dist assets).
+          # The container then exits 1 in a crash loop. `uv pip install -e` first
+          # appears in exp-v0.52.159, so no stable release currently works in a
+          # two-container setup. Revisit once a stable release carries the fix.
+          image: ghcr.io/nesquena/hermes-webui:0.52.201
           env:
             - name: HERMES_WEBUI_HOST
               value: "0.0.0.0"
@@ -208,11 +218,8 @@ spec:
               memory: 1Gi
             limits:
               cpu: "1"
-              # Installing the agent's full dependency tree at boot is memory-hungry.
-              # At 2Gi the resolver got OOM-killed as a child process, so the container
-              # exited 1 with no error output and was never flagged OOMKilled — PID 1
-              # survived and exited on the failed child. Upstream's compose sets no
-              # memory limit here at all.
+              # Headroom for the dependency install at boot, which resolves and builds
+              # the agent's full tree. Upstream's compose sets no memory limit at all.
               memory: 4Gi
       terminationGracePeriodSeconds: 120
       volumes:
