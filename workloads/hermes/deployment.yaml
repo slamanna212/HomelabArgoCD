@@ -60,6 +60,14 @@ spec:
                 cp /bootstrap/config.yaml /data/home/config.yaml
                 chown 1000:1000 /data/home/config.yaml
                 echo "seeded config.yaml from ConfigMap"
+              elif ! grep -q '^_config_version:' /data/home/config.yaml; then
+                # A config with no _config_version is one Hermes refuses to migrate
+                # and ignores entirely, so it is not a config worth preserving —
+                # but back it up rather than delete, in case it holds edits.
+                cp /data/home/config.yaml /data/home/config.yaml.unversioned.bak
+                cp /bootstrap/config.yaml /data/home/config.yaml
+                chown 1000:1000 /data/home/config.yaml /data/home/config.yaml.unversioned.bak
+                echo "replaced unversioned config.yaml (backup: config.yaml.unversioned.bak)"
               else
                 echo "config.yaml already exists on the PVC; leaving it untouched"
               fi
