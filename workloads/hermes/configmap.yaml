@@ -16,6 +16,12 @@ data:
   #   kubectl -n hermes scale deploy/hermes --replicas=1
   # Or just edit the live config from the WebUI, which is usually what you want.
   config.yaml: |
+    # Required. Without it Hermes reads this as a pre-v12 config (~2 years old),
+    # refuses to auto-migrate it, and falls back to its own defaults — so every
+    # setting below is silently ignored, including allow_private_urls. The agent
+    # logs "[config-migrate] WARNING: This config predates version 12" when this
+    # is missing. Bump this only against the upstream config changelog.
+    _config_version: 12
     model:
       # OpenRouter model slug. Change from the WebUI composer footer or by editing
       # config.yaml on the PVC — this ConfigMap is not re-read after first seed.
