@@ -53,8 +53,15 @@ spec:
             # so far ran with two WireGuard flows to one peer through one box — one locally
             # terminated, one NATed. Moving off that endpoint tests whether the collision
             # matters. See the T0 section of docs/dispatcharr-buffering-runbook.md.
+            # NOT `us-qas-wg-306`. That hostname is absent from the server list embedded in
+            # gluetun v3.41.3 and gluetun hard-fails at startup ("the hostname specified is
+            # not valid"), taking Dispatcharr down with it. It worked before 08-11 only
+            # because the image was untagged (`:latest`), so every pull got a master build
+            # with a fresher list. Pinning the image — correct for other reasons — froze the
+            # server list too. Validate any new value against the choices gluetun prints in
+            # that error before committing it.
             - name: SERVER_HOSTNAMES
-              value: "us-qas-wg-306"
+              value: "us-qas-wg-203"
             - name: FIREWALL_OUTBOUND_SUBNETS
               value: "10.0.0.0/8,10.96.0.0/12"
             # WireGuard sends no keepalives by default, so an idle tunnel emits nothing.
