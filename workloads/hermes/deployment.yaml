@@ -90,12 +90,11 @@ spec:
             # could drive an agent that has a shell in your cluster. Keep this false.
             - name: GATEWAY_ALLOW_ALL_USERS
               value: "false"
-            # REQUIRED: your numeric Discord user ID (Discord → Settings → Advanced →
-            # Developer Mode, then right-click your name → Copy User ID). Comma-separate
-            # for more than one. Left as a placeholder deliberately: an empty value
-            # would look like a working config while silently letting nobody in.
+            # Numeric Discord user IDs allowed to drive the agent, comma-separated.
+            # Never leave this empty: an empty allowlist reads like a working config
+            # while silently letting nobody in.
             - name: DISCORD_ALLOWED_USERS
-              value: "REPLACE_WITH_YOUR_DISCORD_USER_ID"
+              value: "123546381628604420"
             - name: OPENROUTER_API_KEY
               valueFrom:
                 secretKeyRef:
