@@ -211,21 +211,62 @@ that moment, Redis comes back empty, and the only trace is a restart counter nob
 
 **Watch:** `kube_pod_container_status_restarts_total{namespace="dispatcharr"}` and `redis-cli info memory`.
 
-### T2-E — DNS geolocation mismatch (very plausible, frequently missed)
+### T2-E — DNS resolved through the tunnel — CONFIRMED ROOT CAUSE, fixed 2026-08-11
 
-The `dispatcharr` container resolves through **CoreDNS**, not through gluetun. `/etc/resolv.conf`
-is per-container, and only gluetun's own copy gets rewritten — the shared network namespace does
-not share resolver config. gluetun's firewall explicitly permits `10.96.0.0/12` outbound, so
-cluster DNS keeps working and nothing looks broken.
+**This section previously said the opposite and was wrong.** It claimed: "The `dispatcharr`
+container resolves through **CoreDNS**, not through gluetun. `/etc/resolv.conf` is per-container,
+and only gluetun's own copy gets rewritten." Both halves are false, and that error is why this
+went unfound for weeks.
 
-Result: provider hostnames resolve to whichever CDN edge is nearest **your house**, and then
-Dispatcharr connects to that edge **from Toronto (or Ashburn)**. Every stream takes a
-transcontinental hairpin to an edge node deliberately chosen to be close to a place the traffic
-isn't coming from. Latency and jitter both go up, and — critically — **this is identical no
-matter which exit you pick**, which again matches "four datacenters, no change."
+**kubelet generates one `resolv.conf` per Pod and bind-mounts it into every container.** When
+gluetun rewrote it, it rewrote it for `dispatcharr` too. Measured on the live pod 2026-08-11 —
+both containers:
 
-**Test:** resolve a provider hostname from inside the pod, then resolve the same name from the
-VPN's own resolver, and compare the answers and the RTT to each.
+```
+nameserver 127.0.0.1
+```
+
+`127.0.0.1:53` is gluetun's DNS-over-TLS proxy (`DOT=on` is the gluetun default), which resolves
+via Cloudflare **through the WireGuard tunnel**. So every provider hostname lookup depended on
+tunnel state.
+
+The failure chain, observed end to end:
+
+```
+tunnel stalls  →  gluetun's DoT resolver times out
+               →  ffmpeg: "Failed to resolve hostname limited-name.com:
+                   Temporary failure in name resolution"
+               →  stream dies, Dispatcharr tries all alternates, all fail identically
+               →  "All 2 alternate streams have been tried" / "Health-requested
+                   stream switch failed"
+               →  viewer buffers
+```
+
+This is why every bandwidth measurement came back clean. Peak throughput during a stall was
+17 Mbps, `eth0` showed zero errors and zero drops across 7.3 GB, and the WAN path to the Mullvad
+endpoint pinged 242 packets with one loss at a flat 45 ms — all while streams were failing. It was
+never throughput. **A failed DNS lookup kills a stream exactly as dead as a saturated link.**
+
+Two further consequences that were live the whole time:
+
+- The pod bypassed the network-level DNS policy entirely. Everything is supposed to resolve via
+  `10.1.10.4` / `10.1.10.5` or the UniFi gateway; gluetun's DoT queries were encrypted inside
+  WireGuard and exited at Mullvad, invisible to those rules.
+- gluetun's `Block malicious: yes` filter was being applied to provider hostnames.
+
+**Fix:** `DOT=off` and `DNS_KEEP_NAMESERVER=on` on the gluetun sidecar, returning the pod to
+CoreDNS. Residual tradeoff — the original geolocation concern below — is real but minor:
+
+> Provider hostnames resolve to whichever CDN edge is nearest **your house**, and Dispatcharr then
+> connects to that edge **from the VPN exit's region**. Latency and jitter both go up, and this is
+> identical no matter which exit you pick — which matches "four datacenters, no change."
+
+**Verify:**
+
+```bash
+kubectl -n dispatcharr exec <web-pod> -c dispatcharr -- cat /etc/resolv.conf   # expect CoreDNS
+kubectl -n dispatcharr logs <web-pod> -c gluetun | grep -iA6 'DNS settings'    # expect DOT off
+```
 
 ### T2-F — Single WireGuard tunnel = single flow for every stream
 
@@ -481,7 +522,7 @@ Do not apply these blind — they are what to commit once a test confirms the ca
 | T1-C | Cap celery concurrency; longer M3U/EPG refresh interval | Dispatcharr UI / celery env |
 | T1-D | Redis `--maxmemory 400mb --maxmemory-policy allkeys-lru`, raise limit, add probes | `redis.yaml` |
 | T1-D | Alert on `kube_pod_container_status_restarts_total{namespace="dispatcharr"}` | `prometheusrule.yaml` |
-| T2-E | Point the app container at gluetun's resolver, or enable `DOT` and set `dnsConfig` | `deployment-web.yaml` |
+| T2-E | **DONE 2026-08-11** — `DOT=off` + `DNS_KEEP_NAMESERVER=on` so DNS uses CoreDNS, not the tunnel | `deployment-web.yaml` |
 | T3 | Drop `appProtocol: kubernetes.io/ws` | `service.yaml` |
 
 There is also a **monitoring gap worth closing regardless of outcome**: nothing alerts on pod
