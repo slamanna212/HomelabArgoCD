@@ -109,12 +109,43 @@ With the restart disabled the checks still run and still log; only the destructi
 gone. Tradeoff: a genuinely dead tunnel will now stay dead rather than self-heal. The killswitch
 means that fails closed (no leak) — Dispatcharr simply loses its providers.
 
-**Pin the gluetun image.** `image: qmcgaw/gluetun` with no tag resolves to `:latest`, which makes
-Kubernetes default `imagePullPolicy` to `Always` — so every pod restart silently pulls a new
-gluetun build, invisible to both this repo and Renovate. Note that `latest` runs *ahead* of the
-newest semver tag (the 2026-08-07 build post-dates `v3.41.3`), so pin by **digest**, not by
-version tag: a version tag old enough to exist may predate `HEALTH_RESTART_VPN` and silently
-undo the fix above.
+**The gluetun image is pinned to `v3.41.3`.** Untagged (`image: qmcgaw/gluetun`) resolves to
+`:latest`, which makes Kubernetes default `imagePullPolicy` to `Always` — so every pod restart
+silently pulled a master build, invisible to both this repo and Renovate. The pod that ran from
+2026-08-10 to 2026-08-11 logged `You are running on the bleeding edge of latest!`.
+
+An earlier version of this note claimed a version tag might predate `HEALTH_RESTART_VPN` and told
+you to pin by digest instead. **That was wrong.** `HEALTH_RESTART_VPN` shipped in **v3.41.0**
+("New option `HEALTH_RESTART_VPN`: you should really leave it to `on`, unless you have trust
+issues with the healthcheck"). A stable tag keeps the fix — pin by tag, and let Renovate move it.
+
+**DNS does not go through gluetun.** `DOT=off` and `DNS_KEEP_NAMESERVER=on` are set deliberately.
+gluetun's defaults enable a DNS-over-TLS proxy on `127.0.0.1:53` that resolves via Cloudflare
+*through the tunnel*, and it rewrites `/etc/resolv.conf` to point at itself. Critically, **kubelet
+generates one `resolv.conf` per Pod and bind-mounts it into every container**, so that rewrite
+captured the `dispatcharr` container as well — confirmed 2026-08-11, both containers showed
+`nameserver 127.0.0.1`.
+
+Consequences, all of which were live for weeks:
+
+- Every provider hostname lookup depended on tunnel state. A momentary tunnel stall became
+  `Failed to resolve hostname ...: Temporary failure in name resolution` in ffmpeg, the stream
+  died, Dispatcharr burned through all its alternates (which failed identically), and the viewer
+  saw buffering. A failed lookup kills a stream exactly as dead as a saturated link, which is why
+  every throughput measurement came back clean while streams kept dropping.
+- The pod bypassed the network-level DNS policy completely. All DNS is supposed to go to
+  `10.1.10.4` / `10.1.10.5` or the UniFi gateway; gluetun's DoT queries were encrypted inside
+  WireGuard and exited at Mullvad, so those rules never saw them.
+- gluetun's `Block malicious: yes` blocklist was being applied to provider hostnames.
+
+Verified at the time of the fix: `10.1.10.4` and CoreDNS both resolved the provider hostname from
+inside that pod in milliseconds, while gluetun's `127.0.0.1:53` timed out. Diagnose with
+`kubectl -n dispatcharr exec <web-pod> -c dispatcharr -- cat /etc/resolv.conf` — anything other
+than the CoreDNS service IP means gluetun has taken DNS over again.
+
+Tradeoff: provider hostnames now resolve from home rather than from the VPN exit, so a CDN may
+hand back an edge near the house while traffic egresses from the exit's region. That is a far
+smaller problem than losing name resolution whenever the tunnel hiccups.
 
 **Gotcha:** gluetun's own iptables killswitch firewall applies to the whole Pod, not just the
 gluetun container, because Kubernetes Pods share one network namespace. Any port that needs to be

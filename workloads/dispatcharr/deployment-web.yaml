@@ -21,7 +21,11 @@ spec:
       initContainers:
         - name: gluetun
           restartPolicy: Always
-          image: qmcgaw/gluetun
+          # Pinned to a release. Untagged resolves to :latest, which makes Kubernetes
+          # default imagePullPolicy to Always — so every pod restart silently pulled a
+          # master build, invisible to this repo and to Renovate. HEALTH_RESTART_VPN
+          # below exists as of v3.41.0, so a stable tag keeps that fix.
+          image: qmcgaw/gluetun:v3.41.3
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
@@ -57,6 +61,18 @@ spec:
             # destructive restart is disabled.
             - name: HEALTH_RESTART_VPN
               value: "off"
+            # Leave DNS to CoreDNS. gluetun defaults to DOT=on and rewrites
+            # /etc/resolv.conf to its own DoT proxy on 127.0.0.1:53, which resolves via
+            # Cloudflare *through the tunnel*. kubelet bind-mounts ONE resolv.conf into
+            # every container in a pod, so that rewrite captured the dispatcharr
+            # container too — every provider lookup depended on tunnel state, and any
+            # tunnel blip became "Temporary failure in name resolution" and a dead
+            # stream. It also bypassed the network-level DNS policy entirely and ran
+            # gluetun's malicious-domain blocklist against provider hostnames.
+            - name: DOT
+              value: "off"
+            - name: DNS_KEEP_NAMESERVER
+              value: "on"
             - name: FIREWALL_INPUT_PORTS
               value: "9999,9191,9192"
           startupProbe:
