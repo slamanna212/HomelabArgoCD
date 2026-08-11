@@ -116,6 +116,14 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: openrouter-api-key
+            # Talks to api.deepseek.com directly, bypassing OpenRouter. Both containers
+            # get it: the gateway uses it for Discord and cron, and the WebUI needs it
+            # too because it runs the agent in-process for chat.
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: deepseek-api-key
             - name: DISCORD_BOT_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -203,6 +211,11 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: openrouter-api-key
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: deepseek-api-key
           ports:
             - name: http
               containerPort: 8787
