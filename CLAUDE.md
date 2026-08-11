@@ -90,25 +90,43 @@ To swap: edit `SERVER_HOSTNAMES`, commit, push. Revert the same way when done. C
 `workloads/dispatcharr/external-secrets.yaml` — the WireGuard `Address` is tied to the Mullvad
 account/key, not the server, so it's the same value regardless of which server is selected.
 
-**`HEALTH_RESTART_VPN` is deliberately `off`.** This was the root cause of months of Dispatcharr
-buffering, found 2026-08-10. gluetun health-checks the tunnel two ways — a TCP+TLS dial to
-`cloudflare.com:443`/`github.com:443` every 5 minutes, and an ICMP ping to `1.1.1.1`/`8.8.8.8`
-every minute — and by default *restarts the WireGuard tunnel* when they fail. Under live
-streaming load those checks get starved and time out, so gluetun tears down the tunnel, which
-severs every in-flight provider connection, which is the buffering. The streams then reconnect,
-re-saturate the link, and the cycle repeats. On 2026-08-10 the tunnel restarted 20 times, every
-5–10 minutes during viewing hours, with a 9.5-hour gap midday when nobody was watching.
+**`HEALTH_RESTART_VPN` is `off`, and that decision is now questionable — see below.** gluetun
+health-checks the tunnel two ways: a TCP+TLS dial to `cloudflare.com:443`/`github.com:443` every
+5 minutes, and an ICMP ping to `1.1.1.1`/`8.8.8.8` every minute. By default it *restarts the
+WireGuard tunnel* when they fail. On 2026-08-10 the tunnel restarted 20 times, every 5–10 minutes
+during viewing hours, with a 9.5-hour gap midday when nobody was watching, so it was set to `off`.
 
-This is invisible to normal monitoring: gluetun restarts the tunnel *internally*, so the
-container never dies, the pod shows `RESTARTS 0`, and no Kubernetes event fires. It also survives
-changing Mullvad exit servers, which is why four datacenter swaps (2026-08-07/08) changed nothing
-— the fault is in gluetun's health logic, not the exit. Diagnose with
+**Correction (2026-08-11): the health checks were not false positives, and the restarts were not
+the root cause.** That earlier reading — "the checks get starved under streaming load and the
+restart is gratuitous" — is disproven by two pieces of evidence gathered after it was written:
+
+1. With `HEALTH_RESTART_VPN=off`, the restarts stopped but the failures did not. Health-check
+   failure events continued at ~15–30/day through 08-11.
+2. A node-side `tcpdump` on `slama-read-k8work01v` during a reproduced failure shows inbound
+   WireGuard *data* genuinely not arriving from the WAN: the pod keeps sending, Mullvad keeps
+   re-initiating handshakes every ~10 s, and exactly one 1360 B data packet arrives in 2+ minutes.
+   The tunnel really is blackholed when the checks say it is.
+
+So the restart was a *response* to a real outage, not the cause of one. The daily restart count
+tracked how often the tunnel was blackholed — which is also why it correlated with viewing hours.
+
+Consequence of the current setting: a wedged tunnel now stays wedged for WireGuard's full
+~180 s reject-after-time cycle instead of being re-established in seconds, which likely makes
+individual freezes *longer* (viewers see up to the 285 s buffering timeout). Weigh that against
+re-enabling it before assuming `off` is the safe default. The killswitch means a dead tunnel
+fails closed (no leak) — Dispatcharr simply loses its providers.
+
+Restarts are invisible to normal monitoring: gluetun restarts the tunnel *internally*, so the
+container never dies, the pod shows `RESTARTS 0`, and no Kubernetes event fires. Diagnose with
 `kubectl -n dispatcharr logs <web-pod> -c gluetun --since=12h | grep '\[vpn\] starting'`, not with
-pod status. `manifests/dispatcharr/gluetun-loki-rules.yaml` now alerts on it.
+pod status. `manifests/dispatcharr/gluetun-loki-rules.yaml` alerts on both restarts and failures.
 
-With the restart disabled the checks still run and still log; only the destructive remedy is
-gone. Tradeoff: a genuinely dead tunnel will now stay dead rather than self-heal. The killswitch
-means that fails closed (no leak) — Dispatcharr simply loses its providers.
+**Current leading cause of the blackholes: the UniFi gateway's hardware flow offload.** The
+failing combination is specifically *WireGuard + gateway WAN NAT + sustained load*; TCP through
+the same NAT (214 Mbps), UDP through the gateway without NAT, and the gateway's own WireGuard
+client to the same Mullvad endpoint are all clean. See `docs/dispatcharr-buffering-runbook.md`
+for the evidence and the open tests. Do not re-litigate MTU, Mullvad, DNS, or the node datapath —
+all are cleared with data.
 
 **The gluetun image is pinned to `v3.41.3`.** Untagged (`image: qmcgaw/gluetun`) resolves to
 `:latest`, which makes Kubernetes default `imagePullPolicy` to `Always` — so every pod restart

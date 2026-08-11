@@ -98,6 +98,78 @@ Verify it actually took before you start: `kubectl -n argocd get application dis
 
 Ranked by (likelihood x how well it explains "changing datacenters didn't help").
 
+### T0 — UniFi hardware flow offload desyncing the WireGuard UDP flow — LEADING SUSPECT (2026-08-11)
+
+This supersedes T1-A/T1-0 as the leading suspect. It is the only hypothesis that survives the
+2026-08-11 reproduction, and unlike everything below it, the fix is at the gateway, not in this
+repo.
+
+**Reproduced signature** (load test, 19:24–19:29): the flow works fresh at 12 MB/s → inbound data
+vanishes at **~30 s** → escalates to a total blackhole including ICMP → recovers on WireGuard's
+~180 s reject-after-time cycle, flushing ~100 s of queued packets at once. Node `tcpdump` shows
+the pod still sending and inbound *handshakes* still arriving, but inbound *data* gone: exactly
+one 1360 B packet in 2+ minutes, and Mullvad re-initiating handshakes every ~10 s because its
+data is never acknowledged. **The node forwards everything — the loss is upstream of the node.**
+
+**Why flow offload:**
+
+- **The 30 s number is not a coincidence.** `nf_flowtable_udp_timeout` defaults to **30 seconds** —
+  the interval after which an offloaded UDP flow is aged out of the fastpath and handed back to
+  conntrack (with a further hardcoded 30 s pickup window). The measured time-to-blackhole under
+  load is the kernel's own offload-aging constant.
+- **The failure mode is documented upstream.** openwrt/openwrt#17915, "Hardware flow offloading
+  conntrack bug breaking long-lived UDP connections," describes the same asymmetry: the incoming
+  direction goes `UNB` (unbinded) in the offload table while the outgoing stays `BND`, so
+  outbound keeps working and inbound is dropped. It specifically breaks WireGuard.
+- **The trigger matches the timeline nobody connected.** That issue reproduces "with near 100%
+  success by restarting the WAN interface while data continuously flows through the tunnel."
+  The first-ever tunnel failure was **08-04 11:08 — four minutes after the 11:04 WAN DHCP renew**.
+  The chronic pattern began after the **08-05 09:02 firmware reboot**, i.e. another WAN restart.
+  Hardware offload had been on since 07-31 with no failures until the first WAN event. So the
+  correlation is with *offload + WAN interface events*, and the firmware version is incidental —
+  the reboot, not the build, is what matters. That reframes the firmware A/B as low value.
+- **It explains the elimination table exactly.** TCP through the same NAT is clean (different
+  conntrack protocol, different aging). UDP through the gateway inter-VLAN is clean (no NAT, no
+  WAN offload path). The gateway's own `wgclt1` to the same endpoint is clean (locally
+  terminated, never NATed or offloaded). The single failing combination — WireGuard + WAN NAT +
+  sustained load — is precisely the one that gets bound into the fastpath.
+
+**This also retires MTU (T1-A) on evidence rather than by operator decision.** An MTU black hole
+drops large packets from the first one. This flow moved 12 MB/s of full-size packets for 30
+seconds before dying. Size is not the discriminator; flow *state* is.
+
+**Tests, in order of value:**
+
+1. **Bulk UDP through the same NAT, no WireGuard.** The one control never run. If a plain inbound
+   UDP flow also wedges at ~30 s, WireGuard is irrelevant and this is a gateway fastpath bug,
+   full stop — and it becomes a two-line reproduction for a Ubiquiti ticket.
+   `ssh ansible@10.1.20.20 'iperf3 -c iperf.he.net -u -b 100M -R -t 120 -i 5'`
+2. **Source-port test** (the workaround named in openwrt#17915: "restart the tunnel with a
+   different source port"). While wedged, restart *only* the gluetun tunnel and time recovery. A
+   near-instant recovery on a new source port, versus ~180 s of waiting, confirms the gateway is
+   holding broken per-flow state. Watch the source port change in the node capture.
+3. **Non-Toronto endpoint under the load test.** `ca-tor-wg-203` is the same endpoint IP
+   (`23.234.85.2`) as the gateway's own `wgclt1`, so every reproduction so far has run with two
+   WireGuard flows to one peer through one box. The earlier `us-qas` swaps predate the load test
+   and were judged on failure counts, not on the reproduction. Cheap one-line A/B.
+
+**Mitigations that respect "hardware offload stays ON":**
+
+- `WIREGUARD_PERSISTENT_KEEPALIVE_INTERVAL: "15s"` — **applied**. Closes the *idle* aging path
+  (WireGuard sends nothing by default when idle). Does not address the under-load wedge.
+- Re-enable `HEALTH_RESTART_VPN` — under this theory the restart is the workaround, not the
+  problem, because it re-establishes the flow on a new source port. See the corrected note in
+  `CLAUDE.md`. This trades a ~180 s blackhole for a short reconnect.
+- Note that enabling any UniFi QoS rule disables hardware offload as a side effect, so "QoS as a
+  workaround" is not a way around the constraint — it is the same change by another name.
+
+**The architectural fix, if this confirms:** take the WireGuard flow off the gateway NAT entirely
+by policy-routing Dispatcharr's egress out `wgclt1`, which is proven-good. The original blocker
+was that pods have no stable L2 identity — but pod traffic is already SNATed by Cilium to the
+node IP `10.1.20.20`, and a `CiliumEgressGatewayPolicy` can pin it to a dedicated egress IP that
+UniFi PBR can match. That removes the failing element rather than working around it, and deletes
+the gluetun sidecar.
+
 ### T1-0 — Node datapath asymmetry after the manual per-node ip-rule cleanup
 
 **Correction from an earlier draft of this document:** I initially ranked "incomplete kube-proxy
@@ -517,7 +589,10 @@ Do not apply these blind — they are what to commit once a test confirms the ca
 |---|---|---|
 | T1-0 | `kubeadm init phase addon coredns` instead of `addon all` — **done on this branch**; stops kube-proxy returning on a rebuild | `HomelabAnsible/K8sCluster.yml` |
 | T1-0 | Record in CLAUDE.md exactly which nodes had ip rules cleaned on 2026-08-07 and what was removed, so the next incident doesn't have to re-derive it | `CLAUDE.md` |
-| T1-A | `WIREGUARD_MTU: "1320"` on gluetun | `deployment-web.yaml` |
+| T0 | **DONE 2026-08-11** — `WIREGUARD_PERSISTENT_KEEPALIVE_INTERVAL: "15s"` so the flow is never idle past the 30 s offload-aging window | `deployment-web.yaml` |
+| T0 | Re-enable `HEALTH_RESTART_VPN` — the restart re-establishes the flow on a new source port, which is the documented workaround for this bug | `deployment-web.yaml` |
+| T0 | If confirmed: `CiliumEgressGatewayPolicy` + UniFi PBR out `wgclt1`, dropping the gluetun sidecar | new manifest / UniFi |
+| T1-A | ~~`WIREGUARD_MTU: "1320"`~~ — retired, see T0: the flow moved full-size packets at 12 MB/s for 30 s before failing | `deployment-web.yaml` |
 | T1-B | `resources.requests` on gluetun (e.g. 200m/128Mi); raise or drop web `limits.cpu` | `deployment-web.yaml` |
 | T1-C | Cap celery concurrency; longer M3U/EPG refresh interval | Dispatcharr UI / celery env |
 | T1-D | Redis `--maxmemory 400mb --maxmemory-policy allkeys-lru`, raise limit, add probes | `redis.yaml` |

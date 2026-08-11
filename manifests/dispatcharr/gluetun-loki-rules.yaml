@@ -34,8 +34,10 @@ data:
                 the pod status.
 
           # With HEALTH_RESTART_VPN=off the checks still run and still log, they just no
-          # longer tear the tunnel down. This tracks how often they WOULD have fired, so
-          # the underlying flakiness stays visible instead of being silently suppressed.
+          # longer tear the tunnel down. These are TRUE positives: a node-side tcpdump on
+          # 2026-08-11 confirmed inbound WireGuard data really is blackholed while they
+          # fire. Treat a sustained count as "the tunnel is down", not "the check is
+          # noisy" — see the T0 section of docs/dispatcharr-buffering-runbook.md.
           - alert: GluetunHealthCheckFailing
             expr: |
               sum(count_over_time(
@@ -48,7 +50,7 @@ data:
             annotations:
               summary: "Dispatcharr VPN health checks are timing out"
               description: >-
-                {{ $value }} health-check timeouts in 30 minutes. Not itself harmful while
-                HEALTH_RESTART_VPN is off, but it measures how starved the tunnel is under
-                streaming load. Sustained high counts mean the tunnel is genuinely
-                congested rather than the check being oversensitive.
+                {{ $value }} health-check timeouts in 30 minutes. This means the tunnel is
+                blackholed, not that the check is oversensitive — inbound WireGuard data
+                stops arriving from the WAN while these fire. With HEALTH_RESTART_VPN off
+                each episode lasts WireGuard's full ~180 s reject-after-time cycle.

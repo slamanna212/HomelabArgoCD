@@ -51,6 +51,15 @@ spec:
               value: "ca-tor-wg-203"
             - name: FIREWALL_OUTBOUND_SUBNETS
               value: "10.0.0.0/8,10.96.0.0/12"
+            # WireGuard sends no keepalives by default, so an idle tunnel emits nothing.
+            # The UniFi gateway ages an offloaded UDP flow out of its fastpath after
+            # nf_flowtable_udp_timeout (default 30 s) of inactivity, and hands it back to
+            # conntrack with another 30 s pickup window. 15 s guarantees the flow is never
+            # idle long enough to be aged or re-bound. This does NOT explain the 2026-08-11
+            # load-test wedge (that flow was saturated, not idle) — it closes the separate
+            # idle-aging hole, cheaply and with no downside.
+            - name: WIREGUARD_PERSISTENT_KEEPALIVE_INTERVAL
+              value: "15s"
             - name: HEALTH_SERVER_ADDRESS
               value: "0.0.0.0:9999"
             # Do NOT re-enable without reading the note in CLAUDE.md. gluetun's health
