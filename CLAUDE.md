@@ -77,13 +77,20 @@ internet traffic through a VPN, independent of which node it's scheduled on (Uni
 usable here — pods have no stable MAC/L2 identity on the LAN). Configured via `SERVER_HOSTNAMES`
 in `workloads/dispatcharr/deployment-web.yaml`:
 
-- Default: `us-qas-wg-306` (Ashburn, VA — Tzulo, 20 Gbps)
+- Default: `us-qas-wg-306` (Ashburn, VA — Tzulo, 20 Gbps) — **currently active, restored 2026-08-11**
 - Alternate Ashburn: `us-qas-wg-203` (was the default from 2026-08-07 to 2026-08-08)
-- Canada override (use for up to ~24h): `ca-tor-wg-203` (Toronto — Tzulo, 10 Gbps) — **currently active as of 2026-08-08**
+- Canada override (use for up to ~24h): `ca-tor-wg-203` (Toronto — Tzulo, 10 Gbps)
 
-Both Ashburn servers (`-306` and `-203`) were misbehaving on 2026-08-08, which is why Toronto is
-active. When reverting, try `us-qas-wg-306` first and confirm Ashburn is actually healthy again —
-swapping between the two Ashburn hosts did not fix it last time.
+**Do not treat `ca-tor-wg-203` as a neutral choice.** It resolves to `23.234.85.2:51820` — the
+identical endpoint IP *and* port used by the UniFi gateway's own Mullvad WireGuard client
+(`wgclt1`). Selecting it puts two WireGuard flows to one peer through one gateway, one locally
+terminated and one NATed, and every freeze reproduced between 2026-08-08 and 2026-08-11 ran in
+that configuration. If you need a non-Ashburn override, prefer a server `wgclt1` does not use.
+
+The 2026-08-08 note claiming both Ashburn servers were "misbehaving" should be read with
+suspicion: the failures follow the tunnel, not the exit, and swapping among four datacenters
+never changed them. Exit-server choice has never been shown to matter — except possibly via the
+`wgclt1` collision above, which is what the current `us-qas-wg-306` selection is testing.
 
 To swap: edit `SERVER_HOSTNAMES`, commit, push. Revert the same way when done. Credentials
 (`dispatcharr-vpn-secret`) come from Azure Key Vault via

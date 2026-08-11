@@ -138,20 +138,64 @@ data is never acknowledged. **The node forwards everything — the loss is upstr
 drops large packets from the first one. This flow moved 12 MB/s of full-size packets for 30
 seconds before dying. Size is not the discriminator; flow *state* is.
 
+#### RESULT 2026-08-11: the generic form of this hypothesis is REFUTED
+
+Two controls were run with `iperf3 -u -b 100M -l 1300 -R` against
+`ash.speedtest.clouvider.net:5200` — rate-matched to the failure (the reproduction wedged at
+12 MB/s ≈ 96 Mbps), same packet rate (~9,600 pps), same 1300-byte datagram size, same direction
+(inbound-dominant), hardware offload unchanged:
+
+| Control | Path | Result |
+|---|---|---|
+| Node-sourced | node socket → gateway NAT → WAN | **69 s clean**, 0.062% loss, 0.023 ms jitter |
+| Pod-sourced | pod → Cilium masquerade → gateway NAT → WAN | **85 s clean**, 0.037% loss, 0.025 ms jitter |
+
+Both sailed past 30 s at line rate with flat jitter. **A long-lived, high-rate, inbound UDP flow
+through this gateway's WAN NAT does not wedge**, with or without Cilium's masquerade in the path.
+
+That kills two things:
+
+- The `nf_flowtable_udp_timeout` framing above, as a *general* mechanism. The 30 s number still
+  matches suspiciously well, but whatever fires at 30 s does not fire for arbitrary UDP flows.
+- The Cilium SNAT re-allocation theory (that the masquerade source port changes mid-flow, so
+  Mullvad's data keeps arriving at a stale gateway binding). Pod-sourced traffic is clean too.
+
+It also incidentally re-clears capacity and saturation: 100 Mbps is ~5% of the 2 Gbps WAN, and a
+saturated path would show climbing loss and jitter rather than 0.03% and 0.025 ms flat.
+
+**Note on reading these numbers:** `-b 100M` is a commanded target rate, not a discovered ceiling.
+Every interval reading exactly 100 Mbits/sec is iperf3 obeying the flag, not a limiter.
+
+#### What survives
+
+The controlled set is now large — gateway WAN NAT, hardware offload, Cilium masquerade, flow
+longevity, packet rate, datagram size, and inbound direction are all present in tests that
+passed. The differences that remain between those tests and the failing tunnel:
+
+1. **Destination collision (leading).** `ca-tor-wg-203` is `23.234.85.2:51820` — the same endpoint
+   IP *and* port as the gateway's own `wgclt1`. The gateway also runs a WireGuard server on
+   51820. Every reproduction ran with two WireGuard flows to one peer through one box, one
+   locally terminated and one NATed. The iperf controls went to an unrelated host on port 5200
+   with no twin. The handoff cited `wgclt1` as the control that clears Mullvad; it is equally a
+   confounder, and it has never been tested with a trigger that works in three minutes.
+2. **Port 51820 specifically**, independent of the endpoint.
+3. **WireGuard's own packet characteristics** — UDP GSO bursts from the Mullvad server produce
+   different pacing than iperf3's paced stream.
+
 **Tests, in order of value:**
 
-1. **Bulk UDP through the same NAT, no WireGuard.** The one control never run. If a plain inbound
-   UDP flow also wedges at ~30 s, WireGuard is irrelevant and this is a gateway fastpath bug,
-   full stop — and it becomes a two-line reproduction for a Ubiquiti ticket.
-   `ssh ansible@10.1.20.20 'iperf3 -c iperf.he.net -u -b 100M -R -t 120 -i 5'`
+1. **Non-Toronto endpoint under the load test — IN PROGRESS 2026-08-11.** `SERVER_HOSTNAMES`
+   moved to `us-qas-wg-306`, which is a different IP from `wgclt1`'s endpoint. Run the OVH load
+   test (Appendix A) three rounds. Survives → collision confirmed, and the fix is simply never
+   sharing an endpoint with `wgclt1`. Wedges at 30 s → endpoint is irrelevant and suspect (3)
+   becomes the target. The earlier `us-qas` swaps do not cover this: they predate the load test
+   and were judged on multi-day failure counts.
 2. **Source-port test** (the workaround named in openwrt#17915: "restart the tunnel with a
    different source port"). While wedged, restart *only* the gluetun tunnel and time recovery. A
-   near-instant recovery on a new source port, versus ~180 s of waiting, confirms the gateway is
+   near-instant recovery on a new source port, versus ~180 s of waiting, confirms something is
    holding broken per-flow state. Watch the source port change in the node capture.
-3. **Non-Toronto endpoint under the load test.** `ca-tor-wg-203` is the same endpoint IP
-   (`23.234.85.2`) as the gateway's own `wgclt1`, so every reproduction so far has run with two
-   WireGuard flows to one peer through one box. The earlier `us-qas` swaps predate the load test
-   and were judged on failure counts, not on the reproduction. Cheap one-line A/B.
+3. **Bidirectional UDP control.** The iperf controls were inbound-dominant; the tunnel is
+   genuinely two-way. `iperf3 -u --bidir` closes that gap if tests 1 and 2 both come back null.
 
 **Mitigations that respect "hardware offload stays ON":**
 
