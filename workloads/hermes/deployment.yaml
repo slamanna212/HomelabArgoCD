@@ -205,10 +205,15 @@ spec:
           resources:
             requests:
               cpu: 250m
-              memory: 512Mi
+              memory: 1Gi
             limits:
               cpu: "1"
-              memory: 2Gi
+              # Installing the agent's full dependency tree at boot is memory-hungry.
+              # At 2Gi the resolver got OOM-killed as a child process, so the container
+              # exited 1 with no error output and was never flagged OOMKilled — PID 1
+              # survived and exited on the failed child. Upstream's compose sets no
+              # memory limit here at all.
+              memory: 4Gi
       terminationGracePeriodSeconds: 120
       volumes:
         - name: data
