@@ -33,8 +33,11 @@ spec:
             - name: dev-net-tun
               mountPath: /dev/net/tun
           env:
+            # `custom` rather than `mullvad` on purpose — see the SERVER_HOSTNAMES note below.
+            # The endpoint is pinned explicitly, so gluetun's embedded server list is not
+            # consulted at all and cannot pick a stale hostname or an IPv6 address.
             - name: VPN_SERVICE_PROVIDER
-              value: "mullvad"
+              value: "custom"
             - name: VPN_TYPE
               value: "wireguard"
             - name: WIREGUARD_PRIVATE_KEY
@@ -47,28 +50,32 @@ spec:
                 secretKeyRef:
                   name: dispatcharr-vpn-secret
                   key: wireguard-addresses
-            # Back to the Ashburn default 2026-08-11. This is also an active experiment:
-            # `ca-tor-wg-203` resolves to 23.234.85.2:51820, which is the exact endpoint the
-            # UniFi gateway's own WireGuard client (`wgclt1`) uses, so every freeze reproduced
-            # so far ran with two WireGuard flows to one peer through one box — one locally
-            # terminated, one NATed. Moving off that endpoint tests whether the collision
-            # matters. See the T0 section of docs/dispatcharr-buffering-runbook.md.
-            # Two ways this field takes Dispatcharr down, both hit on 2026-08-11:
+            # us-qas-wg-306 — Ashburn, VA, Tzulo, 20 Gbps. Endpoint pinned by IP because
+            # SERVER_HOSTNAMES took Dispatcharr down twice on 2026-08-11:
             #
-            #   1. A hostname absent from the server list embedded in gluetun v3.41.3 —
-            #      gluetun hard-fails at startup ("the hostname specified is not valid") and
-            #      the killswitch keeps the pod down. `us-qas-wg-306` is such a hostname now:
-            #      it worked before the image was pinned only because untagged `:latest`
-            #      pulled master builds with a fresher list. Pinning froze the server list
-            #      along with the code. Valid Ashburn names for v3.41.3 are
-            #      us-qas-wg-001/002/003/004, -101/102/103, -201/202/203/204.
-            #   2. A hostname whose selected endpoint is IPv6. `us-qas-wg-203` resolved to
-            #      [2a01:4740:1::f201]:51820 and every dial timed out — this cluster is IPv4
-            #      only. Check the "[wireguard] Connecting to" log line after any change.
+            #   1. gluetun v3.41.3's embedded server list does not contain us-qas-wg-306, so
+            #      it hard-failed at startup ("the hostname specified is not valid") and the
+            #      killswitch kept the whole pod down. The server is live — Mullvad's API
+            #      lists it active — the *image's* list is stale. It worked before the image
+            #      was pinned only because untagged `:latest` pulled master builds with a
+            #      fresher list; pinning froze the server list along with the code.
+            #   2. us-qas-wg-203 IS in that list, but gluetun selected its IPv6 endpoint
+            #      [2a01:4740:1::f201]:51820. This cluster is IPv4 only, so every dial timed
+            #      out and the tunnel never came up.
             #
-            # `ca-tor-wg-203` is IPv4 (23.234.85.2) and known-good on this image.
-            - name: SERVER_HOSTNAMES
-              value: "ca-tor-wg-203"
+            # Pinning IP + port + public key sidesteps both: no list lookup, no address-family
+            # choice. Values from https://api.mullvad.net/www/relays/wireguard/ — re-check
+            # there if Mullvad ever rotates this relay's key or address.
+            #
+            # 23.234.98.127 is also deliberately NOT 23.234.85.2 (ca-tor-wg-203), which is the
+            # endpoint the UniFi gateway's own wgclt1 uses. See the T0 section of
+            # docs/dispatcharr-buffering-runbook.md.
+            - name: WIREGUARD_ENDPOINT_IP
+              value: "23.234.98.127"
+            - name: WIREGUARD_ENDPOINT_PORT
+              value: "51820"
+            - name: WIREGUARD_PUBLIC_KEY
+              value: "5J/CzkztJt5djDo/UiHA0jQwMOr5b7SfeY77TWmcVF0="
             - name: FIREWALL_OUTBOUND_SUBNETS
               value: "10.0.0.0/8,10.96.0.0/12"
             # WireGuard sends no keepalives by default, so an idle tunnel emits nothing.
