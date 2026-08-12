@@ -41,6 +41,16 @@
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Track Firecrawl image tag in helm values (kept in sync with the chart targetRevision in apps/firecrawl.yaml)",
+      "managerFilePatterns": ["/^values\\/firecrawl\\.yaml$/"],
+      "matchStrings": ["repository: ghcr\\.io/firecrawl/firecrawl\\n\\s*tag: \\\"(?<currentValue>[^\\s\\\"]+)\\\""],
+      "depNameTemplate": "firecrawl/firecrawl",
+      "registryUrlTemplate": "https://ghcr.io",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [

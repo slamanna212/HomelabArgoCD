@@ -1,0 +1,197 @@
+# Firecrawl — self-hosted web extractor for Hermes (internal-only).
+#
+# This is a SINGLE-USER, in-cluster deployment whose only consumer is the Hermes
+# agent (web.extract_backend=firecrawl). No MetalLB, no Traefik/IngressRoute:
+# Hermes talks to it directly over the cluster service network via ClusterIP.
+#
+# Rationale for non-obvious choices:
+#   * images: official ghcr.io/firecrawl images (x86 cluster). The chart's own
+#     docker.io/winkkgmbh/* defaults are unofficial and untagged (latest);
+#     we override to official repos. `firecrawl` is pinned to a real release
+#     tag (2.11.2). playwright-service / nuq-postgres publish no stable version
+#     tag (only latest + linux-amd64), so they use the arch tag for determinism.
+#   * resources: default requests total ~26Gi across 15+ pods. Scaled way down
+#     for one user. extractWorker (LLM structured-extraction, /v2/extract) is
+#     disabled because Hermes only needs scrape/markdown via the main worker +
+#     playwright. cclogWorker off by default in chart already.
+#   * persistence: NuQ Postgres holds the job queue + scrape records. Enable a
+#     Longhorn volume so restarts don't drop the queue DB. Hermes itself keeps
+#     no state here.
+#   * auth: USE_DB_AUTHENTICATION=false (chart default). API is unauthenticated.
+#     Safe ONLY because the Service is ClusterIP — nothing outside the cluster
+#     can reach it, and Hermes sends no key (FIRECRAWL_API_URL only).
+
+# Make service names clean: fullnameOverride -> service = firecrawl-api (not
+# firecrawl-firecrawl-api). DNS Hermes uses: firecrawl-api.firecrawl.svc.cluster.local:3002
+fullnameOverride: firecrawl
+
+resources:
+  enabled: true
+
+api:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"   # api runs node --max-old-space-size=6144
+
+worker:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"   # worker runs node --max-old-space-size=3072
+
+# Structured/AI extraction (/v2/extract) — not needed by Hermes web_extract.
+extractWorker:
+  enabled: false
+  replicaCount: 0
+
+nuqWorker:
+  replicaCount: 2          # queue consumer; drives NUQ_WORKER_COUNT config default
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+
+nuqPrefetchWorker:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+
+cclogWorker:
+  enabled: false
+
+nuqPostgres:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/firecrawl/nuq-postgres
+    tag: linux-amd64
+    pullPolicy: IfNotPresent
+  auth:
+    username: postgres
+    password: firecrawl-db           # internal-only ClusterIP; overridable via key-vault later
+    database: postgres
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: longhorn
+
+rabbitmq:
+  enabled: true
+  # official rabbitmq image (chart default is rabbitmq:3-management — keep; it
+  # is the upstream-verified image for amazon management plugin)
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+
+image:
+  repository: ghcr.io/firecrawl/firecrawl
+  tag: "2.11.2"
+  pullPolicy: IfNotPresent
+  dockerSecretEnabled: false
+
+playwright:
+  repository: ghcr.io/firecrawl/playwright-service
+  tag: linux-amd64
+  pullPolicy: IfNotPresent
+  replicaCount: 1
+
+redis:
+  image: redis:alpine
+  replicaCount: 1
+
+service:
+  api:
+    type: ClusterIP
+    port: 3002
+  playwright:
+    type: ClusterIP
+    port: 3000
+  redis:
+    type: ClusterIP
+    port: 6379
+  rabbitmq:
+    type: ClusterIP
+    port: 5672
+    managementPort: 15672
+
+config:
+  NUM_WORKERS_PER_QUEUE: "8"
+  PORT: "3002"
+  HOST: "0.0.0.0"
+  WORKER_PORT: "3005"
+  EXTRACT_WORKER_PORT: "3004"
+  NUQ_WORKER_PORT: "3006"
+  NUQ_PREFETCH_WORKER_PORT: "3011"
+  CCLOG_WORKER_PORT: "3013"
+  NUQ_WORKER_COUNT: "2"
+  USE_DB_AUTHENTICATION: "false"
+  IS_KUBERNETES: "true"
+  ENV: "production"
+  LOGGING_LEVEL: "INFO"
+  FIRECRAWL_APP_SCHEME: "http"
+  # Internal service name — needed by the API for self-referencing URLs/webhooks.
+  FIRECRAWL_APP_HOST: "firecrawl-api.firecrawl.svc.cluster.local"
+  FIRECRAWL_APP_PORT: "3002"
+  REDIS_URL: ""
+  REDIS_RATE_LIMIT_URL: ""
+  PLAYWRIGHT_MICROSERVICE_URL: ""
+  NUQ_DATABASE_URL: ""
+  NUQ_DATABASE_URL_LISTEN: ""
+  NUQ_RABBITMQ_URL: ""
+  OPENAI_BASE_URL: ""
+  MODEL_NAME: ""
+  MODEL_EMBEDDING_NAME: ""
+  OLLAMA_BASE_URL: ""
+  PROXY_SERVER: ""
+  PROXY_USERNAME: ""
+  SEARXNG_ENDPOINT: ""
+  SEARXNG_ENGINES: ""
+  SEARXNG_CATEGORIES: ""
+  SELF_HOSTED_WEBHOOK_URL: ""
+  extra: {}
+
+secret:
+  OPENAI_API_KEY: ""
+  SLACK_WEBHOOK_URL: ""
+  LLAMAPARSE_API_KEY: ""
+  BULL_AUTH_KEY: ""
+  TEST_API_KEY: ""
+  FIRE_ENGINE_BETA_URL: ""
+  SUPABASE_ANON_TOKEN: ""
+  SUPABASE_URL: ""
+  SUPABASE_SERVICE_TOKEN: ""
+  PROXY_PASSWORD: ""
+  SELF_HOSTED_WEBHOOK_HMAC_SECRET: ""
+  REDIS_PASSWORD: ""
+  extra: {}
+
+imagePullSecrets: []
