@@ -95,9 +95,13 @@ nuqPostgres:
       cpu: "1000m"
       memory: "1Gi"
   persistence:
-    enabled: true
-    size: 10Gi
-    storageClass: longhorn
+    enabled: false
+    # Persistence disabled (emptyDir): the NuQ Postgres here only holds transient
+    # queue/job state for a single-user Hermes scraper. The chart mounts the PVC
+    # root directly as PGDATA with no subPath, so a longhorn/ext4 volume's
+    # lost+found dir makes initdb refuse to start ("directory exists but is not
+    # empty"). emptyDir avoids that entirely and the queue simply re-ingests on
+    # demand. See wiki entity firecrawl.
 
 rabbitmq:
   enabled: true
