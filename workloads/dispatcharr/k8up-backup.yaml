@@ -53,13 +53,16 @@ spec:
         key: appKey
   backup:
     schedule: "0 2 * * *"
-    keepJobs: 3
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 0
   check:
     schedule: "0 3 * * 0"
-    keepJobs: 1
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 0
   prune:
     schedule: "0 4 * * 0"
-    keepJobs: 1
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 0
     retention:
       keepLast: 7
       keepWeekly: 4
