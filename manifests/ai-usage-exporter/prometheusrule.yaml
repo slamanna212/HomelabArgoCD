@@ -2,26 +2,24 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: ai-usage-alerts
-  namespace: monitoring
+  namespace: hermes
   labels:
     release: kube-prometheus-stack
 spec:
   groups:
     - name: ai-usage
       rules:
-        # NOTE: the collector runs on Sam's desktop (where Claude/Codex OAuth
-        # credentials stay fresh). "Down" is expected when the machine sleeps,
-        # so there is intentionally no collector-down page. Staleness is the
-        # signal instead (24h threshold below).
-        - alert: AIExporterUnreachable
-          expr: up{job="ai-usage-desktop"} == 0
-          for: 1h
+        # Collector runs in-cluster as a sidecar in the hermes pod. Down = real
+        # outage now (not laptop sleep), so it pages.
+        - alert: AICollectorDown
+          expr: absent(ai_collector_up) or ai_collector_up == 0
+          for: 10m
           labels:
-            severity: warning
+            severity: critical
             app: ai-usage-exporter
           annotations:
-            summary: "AI usage exporter unreachable"
-            description: "Prometheus cannot reach the desktop collector for 1 hour. If the machine is awake, check the exporter service and firewall (TCP 9100)."
+            summary: "AI usage collector is down"
+            description: "No ai_collector_up metric for 10 minutes. The ai-usage-collector sidecar in the hermes pod is not scraping usage; all allowance monitoring is stale."
 
         - alert: AICreditsLow
           expr: ai_usage_used_percent >= 80
@@ -81,7 +79,7 @@ spec:
             app: ai-usage-exporter
           annotations:
             summary: "{{ $labels.provider }} usage fetch failing"
-            description: "codexbar cannot fetch {{ $labels.provider }} usage. On the desktop: run 'codexbar usage --provider {{ $labels.provider }} --verbose' to see why. Usually an expired local session (rare — CLI use refreshes it) or a bad API key."
+            description: "codexbar cannot fetch {{ $labels.provider }} usage. In the collector pod: exec 'codexbar usage --provider {{ $labels.provider }} --verbose' to see why. Usually an expired session (Claude: re-run claude login in the pod; Codex: the gateway's credential) or a bad API key."
 
         - alert: AIUsageStale
           expr: (time() - ai_provider_updated_timestamp) > 86400 and ai_provider_up == 1
@@ -91,4 +89,4 @@ spec:
             app: ai-usage-exporter
           annotations:
             summary: "{{ $labels.provider }} usage data is stale"
-            description: "{{ $labels.provider }} last reported {{ $value | humanizeDuration }} ago (over 24h). The desktop collector may be off or the provider API is degraded."
+            description: "{{ $labels.provider }} last reported {{ $value | humanizeDuration }} ago (over 24h). The collector may be failing to refresh or the provider API is degraded."

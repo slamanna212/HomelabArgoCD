@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-usage-exporter
+  namespace: hermes
+  labels:
+    app: ai-usage-exporter
+    component: metrics
+spec:
+  # The collector runs as a sidecar in the hermes pod, so the selector matches
+  # the hermes pod label; only the collector listens on 9100.
+  selector:
+    app: hermes
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100

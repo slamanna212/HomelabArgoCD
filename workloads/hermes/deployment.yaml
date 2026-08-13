@@ -30,7 +30,10 @@ spec:
         # dirs — fsGroup alone leaves root-created dirs at mode 755, which is r-x for
         # the group and leaves the agent unable to write its own home.
         - name: prepare
-          image: nousresearch/hermes-agent:v2026.8.3
+          # Upstream main after the 2026-08 security pass: aiohttp 3.14.3,
+          # cryptography 50.0.0, and SQLite 3.53.4. Pin the immutable
+          # multi-architecture digest rather than the moving `main` tag.
+          image: nousresearch/hermes-agent@sha256:ccc46f54e3a0938ec955df36c40db0e3a01ce5bc3a8639376a840016175654d3
           command: ["/bin/sh", "-ec"]
           args:
             - |
@@ -50,8 +53,8 @@ spec:
               chown -R 1000:1000 /agent-src
               chmod -R u+rX /agent-src
 
-              mkdir -p /data/home /data/workspace
-              chown 1000:1000 /data/home /data/workspace
+              mkdir -p /data/home /data/workspace /data/ai-usage
+              chown 1000:1000 /data/home /data/workspace /data/ai-usage
 
               # Seed config.yaml exactly once. Hermes rewrites this file at runtime
               # (model switching from the WebUI, onboarding), so re-copying it on
@@ -86,12 +89,44 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+        # Stage the codexbar static musl binary (sha256-pinned) for the collector.
+        - name: fetch-codexbar
+          image: alpine:3.20
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              VERSION="v0.49.3"
+              SHA256="869f4f9cce0ad9ef57fd04d01869665f186a43b2e1ecd1300151135ec79e68cd"
+              TARBALL="CodexBarCLI-${VERSION}-linux-musl-x86_64.tar.gz"
+              URL="https://github.com/steipete/CodexBar/releases/download/${VERSION}/${TARBALL}"
+              wget -q -O /tmp/codexbar.tgz "${URL}"
+              echo "${SHA256}  /tmp/codexbar.tgz" | sha256sum -c -
+              mkdir -p /codexbar
+              tar -xzf /tmp/codexbar.tgz -C /codexbar
+              chmod +x /codexbar/codexbar /codexbar/CodexBarCLI
+              chown -R 1000:1000 /codexbar
+          volumeMounts:
+            - name: codexbar-bin
+              mountPath: /codexbar
+        # Stage the claude CLI (npm package) for the collector's delegated refresh.
+        - name: install-claude
+          image: node:22-alpine
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              npm install --silent --global --prefix /claude @anthropic-ai/claude-code
+              chown -R 1000:1000 /claude
+          volumeMounts:
+            - name: claude-cli
+              mountPath: /claude
       containers:
         # The gateway process: Discord, cron/scheduled jobs, and the agent API on
         # 8642. This is what keeps working while you are away — the WebUI alone
         # cannot tick scheduled jobs.
         - name: hermes-agent
-          image: nousresearch/hermes-agent:v2026.8.3
+          image: nousresearch/hermes-agent@sha256:ccc46f54e3a0938ec955df36c40db0e3a01ce5bc3a8639376a840016175654d3
           args:
             - gateway
             - run
@@ -257,6 +292,84 @@ spec:
               # Headroom for the dependency install at boot, which resolves and builds
               # the agent's full tree. Upstream's compose sets no memory limit at all.
               memory: 4Gi
+        # AI allowance/usage collector: codexbar + exporter reading live credentials.
+        # Shares this pod's PVC: reads the gateway's auth.json (live Codex OAuth,
+        # exercised by the fallback model) read-only, and keeps its own state
+        # (Claude CLI credentials, codexbar config) under the `ai-usage` subPath so
+        # it survives restarts. The gateway process is untouched.
+        - name: ai-usage-collector
+          image: node:22-alpine
+          # Container starts as root to install python/node deps, then drops to
+          # uid 1000 (the gateway's auth.json and the ai-usage subPath are both
+          # uid-1000-owned) before running the collector.
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              # claude CLI is a node script; exporter needs python + prometheus_client.
+              apk add --no-cache python3 py3-pip su-exec >/dev/null 2>&1
+              pip install --quiet --no-cache-dir prometheus_client
+              export PATH="/claude/bin:${PATH}"
+              exec su-exec 1000:1000 /app/startup.sh
+          env:
+            - name: HOME
+              value: /data
+            - name: CLAUDE_CONFIG_DIR
+              value: /data/.claude
+            - name: CODEX_HOME
+              value: /data/.codex
+            - name: CODEXBAR_CONFIG
+              value: /data/codexbar/config.json
+            - name: CODEXBAR_BIN
+              value: /codexbar/codexbar
+            - name: GATEWAY_AUTH
+              value: /creds/home/auth.json
+            - name: REFRESH_INTERVAL
+              value: "300"
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: openrouter-api-key
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: deepseek-api-key
+          ports:
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+          # Collector is auxiliary: never take the pod down over it.
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            # Gateway's live auth store (openai-codex OAuth) — READ ONLY.
+            - name: data
+              mountPath: /creds/home
+              subPath: home
+              readOnly: true
+            # Collector's own state: claude creds, codexbar config, codex auth.
+            - name: data
+              mountPath: /data
+              subPath: ai-usage
+            - name: codexbar-bin
+              mountPath: /codexbar
+            - name: claude-cli
+              mountPath: /claude
+            - name: collector-scripts
+              mountPath: /app
       terminationGracePeriodSeconds: 120
       volumes:
         - name: data
@@ -271,3 +384,13 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 1Gi
+        # codexbar static binary staged by fetch-codexbar initContainer.
+        - name: codexbar-bin
+          emptyDir: {}
+        # claude CLI staged by install-claude initContainer (npm global prefix).
+        - name: claude-cli
+          emptyDir: {}
+        # Collector scripts: exporter.py, sync_codex.py, render_config.py, startup.
+        - name: collector-scripts
+          configMap:
+            name: ai-usage-collector
