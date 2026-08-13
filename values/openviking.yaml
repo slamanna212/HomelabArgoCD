@@ -67,13 +67,15 @@ config:
     host: "0.0.0.0"
     port: 1933
     workers: 1
-    # Internal-only ClusterIP service whose only consumer is Hermes, so use
-    # OpenViking's "trusted" mode: it authenticates on the
-    # X-OpenViking-Account / X-OpenViking-User headers that Hermes already sends
-    # (OPENVIKING_ACCOUNT/OPENVIKING_USER in .env). root_api_key is deliberately
-    # NOT set — its presence forces API-key checks even in trusted mode. (dev
-    # mode is not an option: OpenViking hard-refuses dev on a non-localhost host.)
+    # Internal-only ClusterIP service whose only consumer is Hermes. On a
+    # network-reachable host OpenViking ALWAYS requires root_api_key (dev is
+    # refused and trusted demands a key on non-localhost — security guard).
+    # So: trusted mode + root_api_key present. Hermes sends that root key as
+    # OPENVIKING_API_KEY in its .env; OpenViking derives account/user identity
+    # from the key, so no separate user key is needed. root_api_key here
+    # satisfies the non-localhost boot requirement only.
     auth_mode: "trusted"
+    root_api_key: "${OPENVIKING_ROOT_API_KEY}"
     cors_origins:
       - "*"
   storage:
