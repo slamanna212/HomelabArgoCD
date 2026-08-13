@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ai-usage-exporter
+  namespace: ai-monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: ai-usage-exporter
+      component: metrics
+  namespaceSelector:
+    matchNames:
+      - ai-monitoring
+  endpoints:
+    - port: metrics
+      path: /metrics

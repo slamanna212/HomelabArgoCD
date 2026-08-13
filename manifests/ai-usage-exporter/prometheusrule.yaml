@@ -1,0 +1,90 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ai-usage-alerts
+  namespace: ai-monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: ai-usage
+      rules:
+        - alert: AICollectorDown
+          expr: absent(ai_collector_up) or ai_collector_up == 0
+          for: 10m
+          labels:
+            severity: critical
+            app: ai-usage-exporter
+          annotations:
+            summary: "AI usage collector is down"
+            description: "No ai_collector_up metric received for 10 minutes. The ai-usage-exporter pod is not scraping usage, so all allowance monitoring is stale."
+
+        - alert: AICreditsLow
+          expr: ai_usage_used_percent >= 80
+          for: 10m
+          labels:
+            severity: warning
+            app: ai-usage-exporter
+          annotations:
+            summary: "{{ $labels.provider }} {{ $labels.window }} usage at {{ $value | humanize }}%"
+            description: "{{ $labels.provider }} {{ $labels.window }} allowance is {{ $value | humanize }}% used. Reset is due soon; pace usage accordingly."
+
+        - alert: AICreditsCritical
+          expr: ai_usage_used_percent >= 95
+          for: 5m
+          labels:
+            severity: critical
+            app: ai-usage-exporter
+          annotations:
+            summary: "{{ $labels.provider }} {{ $labels.window }} usage at {{ $value | humanize }}%"
+            description: "{{ $labels.provider }} {{ $labels.window }} allowance is {{ $value | humanize }}% used. The window will be exhausted imminently."
+
+        - alert: AIQuotaExhausted
+          expr: ai_usage_used_percent >= 100 or ai_usage_remaining_percent <= 0
+          for: 2m
+          labels:
+            severity: critical
+            app: ai-usage-exporter
+          annotations:
+            summary: "{{ $labels.provider }} {{ $labels.window }} allowance exhausted"
+            description: "{{ $labels.provider }} has fully exhausted its {{ $labels.window }} allowance. Requests will be rate-limited until the window resets."
+
+        - alert: AIBalanceLow
+          expr: ai_credits_remaining{provider=~"openrouter|deepseek"} < 10
+          for: 15m
+          labels:
+            severity: warning
+            app: ai-usage-exporter
+          annotations:
+            summary: "{{ $labels.provider }} prepaid balance below $10"
+            description: "{{ $labels.provider }} has ${{ $value }} prepaid credits remaining. Top up before it runs dry."
+
+        - alert: AIBalanceExhausted
+          expr: ai_credits_remaining{provider=~"openrouter|deepseek"} <= 0
+          for: 5m
+          labels:
+            severity: critical
+            app: ai-usage-exporter
+          annotations:
+            summary: "{{ $labels.provider }} prepaid balance exhausted"
+            description: "{{ $labels.provider }} has ${{ $value }} credits remaining. API calls will start failing."
+
+        - alert: AIProviderFetchFailed
+          expr: ai_provider_up == 0
+          for: 30m
+          labels:
+            severity: warning
+            app: ai-usage-exporter
+          annotations:
+            summary: "{{ $labels.provider }} usage fetch failing"
+            description: "codexbar cannot fetch {{ $labels.provider }} usage. Likely an expired OAuth token or cookie — refresh the credential in Azure KeyVault (ai-monitor-* keys) and restart the deployment."
+
+        - alert: AIUsageStale
+          expr: (time() - ai_provider_updated_timestamp) > 3600 and ai_provider_up == 1
+          for: 30m
+          labels:
+            severity: warning
+            app: ai-usage-exporter
+          annotations:
+            summary: "{{ $labels.provider }} usage data is stale"
+            description: "{{ $labels.provider }} last reported {{ $value | humanizeDuration }} ago. The provider may be throttling the collector or its API is degraded."
