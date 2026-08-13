@@ -154,6 +154,9 @@ spec:
             - name: data
               mountPath: /workspace
               subPath: workspace
+            - name: todoist-mcp
+              mountPath: /opt/hermes-todoist
+              readOnly: true
             # Chromium for the agent's browser tools needs more than the default 64Mi.
             - name: dshm
               mountPath: /dev/shm
@@ -235,6 +238,9 @@ spec:
             - name: data
               mountPath: /workspace
               subPath: workspace
+            - name: todoist-mcp
+              mountPath: /opt/hermes-todoist
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /health
@@ -270,6 +276,10 @@ spec:
         - name: bootstrap
           configMap:
             name: hermes-config
+        - name: todoist-mcp
+          configMap:
+            name: todoist-mcp
+            defaultMode: 0555
         - name: dshm
           emptyDir:
             medium: Memory

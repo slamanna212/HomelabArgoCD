@@ -57,3 +57,10 @@ data:
       redact_secrets: true
       tirith_enabled: true
       tirith_fail_open: true
+    mcp_servers:
+      todoist:
+        command: /app/venv/bin/python
+        args:
+          - /opt/hermes-todoist/todoist_mcp.py
+        connect_timeout: 60
+        enabled: true

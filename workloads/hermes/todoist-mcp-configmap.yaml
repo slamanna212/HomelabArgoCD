@@ -1,0 +1,484 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todoist-mcp
+  namespace: hermes
+data:
+  todoist_mcp.py: |
+    #!/usr/bin/env python3
+    """Todoist MCP server with read and task/project/comment management operations.
+    
+    The OAuth token is never embedded in this file.  The server reuses the existing
+    Todoist OAuth token stored under the active Hermes home (or the legacy WebUI
+    profile path when running inside the WebUI container).
+    """
+    from __future__ import annotations
+    
+    import json
+    import os
+    import sys
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    from pathlib import Path
+    from typing import Any
+    
+    API = "https://api.todoist.com/api/v1"
+    
+    
+    def _token_candidates() -> list[Path]:
+        explicit = os.environ.get("TODOIST_TOKEN_FILE")
+        candidates: list[Path] = []
+        if explicit:
+            candidates.append(Path(explicit))
+        hermes_home = os.environ.get("HERMES_HOME")
+        if hermes_home:
+            candidates.append(Path(hermes_home) / "mcp-tokens" / "todoist-direct.json")
+        candidates.extend(
+            [
+                Path("/home/hermeswebui/.hermes/mcp-tokens/todoist-direct.json"),
+                Path("/home/hermes/.hermes/mcp-tokens/todoist-direct.json"),
+            ]
+        )
+        # Preserve order while removing duplicates.
+        return list(dict.fromkeys(candidates))
+    
+    
+    def token() -> str:
+        for path in _token_candidates():
+            try:
+                data = json.loads(path.read_text())
+                value = data["access_token"]
+                if isinstance(value, str) and value:
+                    return value
+            except (OSError, KeyError, TypeError, ValueError):
+                continue
+        raise RuntimeError(
+            "Todoist is not authorized. Existing OAuth token was not found in the Hermes profile."
+        )
+    
+    
+    def _json_body(response: Any) -> Any:
+        raw = response.read()
+        if not raw:
+            return None
+        return json.loads(raw)
+    
+    
+    def api_request(
+        method: str,
+        path: str,
+        *,
+        params: dict[str, object] | None = None,
+        body: dict[str, object] | None = None,
+    ) -> Any:
+        url = API + path
+        if params:
+            clean = {k: str(v) for k, v in params.items() if v is not None}
+            if clean:
+                url += "?" + urllib.parse.urlencode(clean)
+        headers = {
+            "Authorization": "Bearer " + token(),
+            "Accept": "application/json",
+        }
+        data = None
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+            data = json.dumps(body).encode("utf-8")
+        request = urllib.request.Request(url, headers=headers, method=method, data=data)
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return _json_body(response)
+        except urllib.error.HTTPError as exc:
+            body_text = exc.read().decode("utf-8", "replace")[:2000]
+            raise RuntimeError(f"Todoist API returned HTTP {exc.code}: {body_text}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Todoist API request failed: {exc.reason}") from exc
+    
+    
+    def api_get(path: str, params: dict[str, object] | None = None) -> Any:
+        """Compatibility helper used by the migration scripts in /workspace."""
+        return api_request("GET", path, params=params)
+    
+    
+    def _id(kind: str, args: dict[str, Any]) -> str:
+        value = args.get(f"{kind}_id")
+        if value is None or not str(value).strip():
+            raise ValueError(f"{kind}_id is required")
+        return str(value)
+    
+    
+    def _task_fields(args: dict[str, Any], *, create: bool) -> dict[str, Any]:
+        allowed = (
+            "content",
+            "description",
+            "project_id",
+            "section_id",
+            "parent_id",
+            "order",
+            "labels",
+            "priority",
+            "assignee_id",
+            "due_string",
+            "due_date",
+            "due_datetime",
+            "due_lang",
+            "duration",
+            "duration_unit",
+            "deadline_date",
+            "child_order",
+            "day_order",
+        )
+        body = {key: args[key] for key in allowed if key in args and args[key] is not None}
+        if create and not body.get("content"):
+            raise ValueError("content is required")
+        return body
+    
+    
+    TOOLS = [
+        {
+            "name": "list_tasks",
+            "description": "List active Todoist tasks. Supports filters such as 'today', 'overdue', or '#Project Name'.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "filter": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+                    "cursor": {"type": "string"},
+                },
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "get_task",
+            "description": "Get one active Todoist task by ID.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"task_id": {"type": "string"}},
+                "required": ["task_id"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "create_task",
+            "description": "Create a Todoist task. Use project_id, due_string, priority, labels, or description when needed.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "content": {"type": "string"},
+                    "description": {"type": "string"},
+                    "project_id": {"type": "string"},
+                    "section_id": {"type": "string"},
+                    "parent_id": {"type": "string"},
+                    "order": {"type": "integer"},
+                    "labels": {"type": "array", "items": {"type": "string"}},
+                    "priority": {"type": "integer", "minimum": 1, "maximum": 4},
+                    "assignee_id": {"type": ["string", "integer"]},
+                    "due_string": {"type": "string"},
+                    "due_date": {"type": "string"},
+                    "due_datetime": {"type": "string"},
+                    "due_lang": {"type": "string"},
+                    "duration": {"type": "integer", "minimum": 1},
+                    "duration_unit": {"type": "string", "enum": ["minute", "day"]},
+                    "deadline_date": {"type": "string"},
+                },
+                "required": ["content"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "update_task",
+            "description": "Update editable fields on an existing Todoist task. Completing, reopening, and deleting use their dedicated tools.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string"},
+                    "content": {"type": "string"},
+                    "description": {"type": "string"},
+                    "project_id": {"type": "string"},
+                    "section_id": {"type": "string"},
+                    "parent_id": {"type": "string"},
+                    "order": {"type": "integer"},
+                    "labels": {"type": "array", "items": {"type": "string"}},
+                    "priority": {"type": "integer", "minimum": 1, "maximum": 4},
+                    "assignee_id": {"type": ["string", "integer", "null"]},
+                    "due_string": {"type": ["string", "null"]},
+                    "due_date": {"type": ["string", "null"]},
+                    "due_datetime": {"type": ["string", "null"]},
+                    "due_lang": {"type": ["string", "null"]},
+                    "duration": {"type": ["integer", "null"], "minimum": 1},
+                    "duration_unit": {"type": ["string", "null"], "enum": ["minute", "day", None]},
+                    "deadline_date": {"type": ["string", "null"]},
+                    "child_order": {"type": "integer"},
+                    "day_order": {"type": "integer"},
+                },
+                "required": ["task_id"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "complete_task",
+            "description": "Complete a Todoist task and move it to completed history.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"task_id": {"type": "string"}},
+                "required": ["task_id"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "reopen_task",
+            "description": "Reopen a completed Todoist task by ID.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"task_id": {"type": "string"}},
+                "required": ["task_id"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "delete_task",
+            "description": "Permanently delete a Todoist task and its subtasks.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"task_id": {"type": "string"}},
+                "required": ["task_id"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "list_projects",
+            "description": "List active Todoist projects.",
+            "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+        {
+            "name": "get_project",
+            "description": "Get one Todoist project by ID.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"project_id": {"type": "string"}},
+                "required": ["project_id"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "create_project",
+            "description": "Create a Todoist project.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "description": {"type": "string"},
+                    "parent_id": {"type": "string"},
+                    "color": {"type": "string"},
+                    "is_favorite": {"type": "boolean"},
+                    "view_style": {"type": "string", "enum": ["list", "board"]},
+                    "workspace_id": {"type": ["string", "integer"]},
+                },
+                "required": ["name"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "update_project",
+            "description": "Update an existing Todoist project.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "project_id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "description": {"type": "string"},
+                    "color": {"type": "string"},
+                    "is_favorite": {"type": "boolean"},
+                    "view_style": {"type": "string", "enum": ["list", "board"]},
+                    "is_collapsed": {"type": "boolean"},
+                    "folder_id": {"type": ["string", "integer", "null"]},
+                },
+                "required": ["project_id"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "delete_project",
+            "description": "Permanently delete a Todoist project, including its sections and tasks.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"project_id": {"type": "string"}},
+                "required": ["project_id"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "list_comments",
+            "description": "List comments for exactly one Todoist task or project.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"task_id": {"type": "string"}, "project_id": {"type": "string"}},
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "create_comment",
+            "description": "Add a comment to exactly one Todoist task or project.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "content": {"type": "string"},
+                    "task_id": {"type": "string"},
+                    "project_id": {"type": "string"},
+                },
+                "required": ["content"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "update_comment",
+            "description": "Update an existing Todoist comment.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"comment_id": {"type": "string"}, "content": {"type": "string"}},
+                "required": ["comment_id", "content"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "delete_comment",
+            "description": "Permanently delete a Todoist comment.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"comment_id": {"type": "string"}},
+                "required": ["comment_id"],
+                "additionalProperties": False,
+            },
+        },
+    ]
+    
+    
+    def call(name: str, args: dict[str, Any]) -> Any:
+        if name == "list_tasks":
+            return api_get(
+                "/tasks",
+                {"filter": args.get("filter"), "limit": args.get("limit", 100), "cursor": args.get("cursor")},
+            )
+        if name == "get_task":
+            return api_get("/tasks/" + urllib.parse.quote(_id("task", args), safe=""))
+        if name == "create_task":
+            return api_request("POST", "/tasks", body=_task_fields(args, create=True))
+        if name == "update_task":
+            task_id = _id("task", args)
+            body = _task_fields(args, create=False)
+            body.pop("content", None) if "content" not in args else None
+            if not body and "content" not in args:
+                raise ValueError("At least one task field to update is required")
+            return api_request("POST", "/tasks/" + urllib.parse.quote(task_id, safe=""), body=body)
+        if name == "complete_task":
+            task_id = _id("task", args)
+            return api_request("POST", "/tasks/" + urllib.parse.quote(task_id, safe="") + "/close")
+        if name == "reopen_task":
+            task_id = _id("task", args)
+            return api_request("POST", "/tasks/" + urllib.parse.quote(task_id, safe="") + "/reopen")
+        if name == "delete_task":
+            task_id = _id("task", args)
+            return api_request("DELETE", "/tasks/" + urllib.parse.quote(task_id, safe=""))
+        if name == "list_projects":
+            return api_get("/projects")
+        if name == "get_project":
+            return api_get("/projects/" + urllib.parse.quote(_id("project", args), safe=""))
+        if name == "create_project":
+            allowed = ("name", "description", "parent_id", "color", "is_favorite", "view_style", "workspace_id")
+            body = {key: args[key] for key in allowed if key in args and args[key] is not None}
+            if not body.get("name"):
+                raise ValueError("name is required")
+            return api_request("POST", "/projects", body=body)
+        if name == "update_project":
+            project_id = _id("project", args)
+            allowed = ("name", "description", "color", "is_favorite", "view_style", "is_collapsed", "folder_id")
+            body = {key: args[key] for key in allowed if key in args and args[key] is not None}
+            if not body:
+                raise ValueError("At least one project field to update is required")
+            return api_request("POST", "/projects/" + urllib.parse.quote(project_id, safe=""), body=body)
+        if name == "delete_project":
+            project_id = _id("project", args)
+            return api_request("DELETE", "/projects/" + urllib.parse.quote(project_id, safe=""))
+        if name == "list_comments":
+            has_task = bool(args.get("task_id"))
+            has_project = bool(args.get("project_id"))
+            if has_task == has_project:
+                raise ValueError("Provide exactly one of task_id or project_id")
+            return api_get("/comments", {"task_id": args.get("task_id"), "project_id": args.get("project_id")})
+        if name == "create_comment":
+            has_task = bool(args.get("task_id"))
+            has_project = bool(args.get("project_id"))
+            if has_task == has_project:
+                raise ValueError("Provide exactly one of task_id or project_id")
+            return api_request(
+                "POST",
+                "/comments",
+                body={key: args[key] for key in ("content", "task_id", "project_id") if key in args},
+            )
+        if name == "update_comment":
+            return api_request(
+                "POST",
+                "/comments/" + urllib.parse.quote(_id("comment", args), safe=""),
+                body={"content": args["content"]},
+            )
+        if name == "delete_comment":
+            return api_request("DELETE", "/comments/" + urllib.parse.quote(_id("comment", args), safe=""))
+        raise ValueError(f"Unknown tool: {name}")
+    
+    
+    def _annotations(name: str) -> dict[str, bool]:
+        destructive = name in {"delete_task", "delete_project", "delete_comment"}
+        read_only = name.startswith("list_") or name.startswith("get_")
+        return {
+            "readOnlyHint": read_only,
+            "destructiveHint": destructive,
+            "idempotentHint": read_only or name.startswith("update_") or destructive,
+            "openWorldHint": False,
+        }
+    
+    
+    def respond(msg_id: object, result: object = None, error: str | None = None) -> None:
+        payload: dict[str, Any] = {"jsonrpc": "2.0", "id": msg_id}
+        if error is not None:
+            payload["error"] = {"code": -32000, "message": error}
+        else:
+            payload["result"] = result
+        sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\n")
+        sys.stdout.flush()
+    
+    
+    def main() -> None:
+        for line in sys.stdin:
+            message: dict[str, Any] = {}
+            try:
+                message = json.loads(line)
+                method, msg_id = message.get("method"), message.get("id")
+                if method == "initialize":
+                    respond(
+                        msg_id,
+                        {
+                            "protocolVersion": "2025-03-26",
+                            "capabilities": {"tools": {}},
+                            "serverInfo": {"name": "todoist", "version": "2.0.0"},
+                        },
+                    )
+                elif method == "notifications/initialized":
+                    continue
+                elif method == "tools/list":
+                    respond(msg_id, {"tools": [{**tool, "annotations": _annotations(tool["name"])} for tool in TOOLS]})
+                elif method == "tools/call":
+                    params = message.get("params") or {}
+                    data = call(params.get("name"), params.get("arguments") or {})
+                    respond(
+                        msg_id,
+                        {"content": [{"type": "text", "text": json.dumps(data, indent=2)}], "structuredContent": data},
+                    )
+                else:
+                    respond(msg_id, error=f"Unsupported method: {method}")
+            except Exception as exc:  # Return MCP errors without killing the server process.
+                respond(message.get("id"), error=str(exc))
+    
+    
+    if __name__ == "__main__":
+        main()
