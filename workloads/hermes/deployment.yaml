@@ -30,7 +30,10 @@ spec:
         # dirs — fsGroup alone leaves root-created dirs at mode 755, which is r-x for
         # the group and leaves the agent unable to write its own home.
         - name: prepare
-          image: nousresearch/hermes-agent:v2026.8.3
+          # Upstream main after the 2026-08 security pass: aiohttp 3.14.3,
+          # cryptography 50.0.0, and SQLite 3.53.4. Pin the immutable
+          # multi-architecture digest rather than the moving `main` tag.
+          image: nousresearch/hermes-agent@sha256:ccc46f54e3a0938ec955df36c40db0e3a01ce5bc3a8639376a840016175654d3
           command: ["/bin/sh", "-ec"]
           args:
             - |
@@ -91,7 +94,7 @@ spec:
         # 8642. This is what keeps working while you are away — the WebUI alone
         # cannot tick scheduled jobs.
         - name: hermes-agent
-          image: nousresearch/hermes-agent:v2026.8.3
+          image: nousresearch/hermes-agent@sha256:ccc46f54e3a0938ec955df36c40db0e3a01ce5bc3a8639376a840016175654d3
           args:
             - gateway
             - run
