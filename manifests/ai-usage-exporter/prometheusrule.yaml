@@ -2,22 +2,26 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: ai-usage-alerts
-  namespace: ai-monitoring
+  namespace: monitoring
   labels:
     release: kube-prometheus-stack
 spec:
   groups:
     - name: ai-usage
       rules:
-        - alert: AICollectorDown
-          expr: absent(ai_collector_up) or ai_collector_up == 0
-          for: 10m
+        # NOTE: the collector runs on Sam's desktop (where Claude/Codex OAuth
+        # credentials stay fresh). "Down" is expected when the machine sleeps,
+        # so there is intentionally no collector-down page. Staleness is the
+        # signal instead (24h threshold below).
+        - alert: AIExporterUnreachable
+          expr: up{job="ai-usage-desktop"} == 0
+          for: 1h
           labels:
-            severity: critical
+            severity: warning
             app: ai-usage-exporter
           annotations:
-            summary: "AI usage collector is down"
-            description: "No ai_collector_up metric received for 10 minutes. The ai-usage-exporter pod is not scraping usage, so all allowance monitoring is stale."
+            summary: "AI usage exporter unreachable"
+            description: "Prometheus cannot reach the desktop collector for 1 hour. If the machine is awake, check the exporter service and firewall (TCP 9100)."
 
         - alert: AICreditsLow
           expr: ai_usage_used_percent >= 80
@@ -77,14 +81,14 @@ spec:
             app: ai-usage-exporter
           annotations:
             summary: "{{ $labels.provider }} usage fetch failing"
-            description: "codexbar cannot fetch {{ $labels.provider }} usage. Likely an expired OAuth token or cookie — refresh the credential in Azure KeyVault (ai-monitor-* keys) and restart the deployment."
+            description: "codexbar cannot fetch {{ $labels.provider }} usage. On the desktop: run 'codexbar usage --provider {{ $labels.provider }} --verbose' to see why. Usually an expired local session (rare — CLI use refreshes it) or a bad API key."
 
         - alert: AIUsageStale
-          expr: (time() - ai_provider_updated_timestamp) > 3600 and ai_provider_up == 1
+          expr: (time() - ai_provider_updated_timestamp) > 86400 and ai_provider_up == 1
           for: 30m
           labels:
             severity: warning
             app: ai-usage-exporter
           annotations:
             summary: "{{ $labels.provider }} usage data is stale"
-            description: "{{ $labels.provider }} last reported {{ $value | humanizeDuration }} ago. The provider may be throttling the collector or its API is degraded."
+            description: "{{ $labels.provider }} last reported {{ $value | humanizeDuration }} ago (over 24h). The desktop collector may be off or the provider API is degraded."

@@ -23,6 +23,19 @@ prometheus:
     probeSelectorNilUsesHelmValues: false
     serviceMonitorNamespaceSelector: {}
     podMonitorNamespaceSelector: {}
+    # Scrape the AI allowance/usage collector running on Sam's desktop.
+    # The collector runs where Claude Code/Codex are used so their OAuth
+    # credentials self-refresh (no manual token rotation). TODO: set the
+    # desktop's LAN IP (or DNS name) in the target below.
+    additionalScrapeConfigs:
+      - job_name: ai-usage-desktop
+        static_configs:
+          - targets: ["10.1.20.50:9100"]
+            labels:
+              cluster: homelab
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
 
 # -- Grafana --
 grafana:
