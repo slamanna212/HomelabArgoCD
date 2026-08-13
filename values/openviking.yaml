@@ -67,13 +67,12 @@ config:
     host: "0.0.0.0"
     port: 1933
     workers: 1
-    # Internal-only ClusterIP service whose only consumer is Hermes, so use
-    # OpenViking's trusted mode: Hermes authenticates via the
-    # X-OpenViking-Account / X-OpenViking-User headers it already sends
-    # (OPENVIKING_ACCOUNT/OPENVIKING_USER in .env), no API key needed. root_api_key
-    # still resolves a role for the identity and is required to boot on 0.0.0.0.
-    auth_mode: "trusted"
-    root_api_key: "${OPENVIKING_ROOT_API_KEY}"
+    # Internal-only ClusterIP service whose only consumer is Hermes (same
+    # pod-network namespace, nothing else reaches it), so run OpenViking in dev
+    # mode — no authentication, always ROOT — matching the firecrawl extractor's
+    # "unauthenticated but ClusterIP-only" stance. root_api_key is NOT set: the
+    # moment it's present OpenViking enforces key checks even in trusted mode.
+    auth_mode: "dev"
     cors_origins:
       - "*"
   storage:
