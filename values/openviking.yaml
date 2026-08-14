@@ -17,13 +17,15 @@
 #   * embedding: qwen/qwen3-embedding-8b (4096-dim) via OpenRouter — the exact
 #     OpenViking-supported OpenAI-compatible path. encoding_format=float because
 #     OpenRouter can't always deserialize base64 embeddings.
-#   * vlm: google/gemini-2.5-flash-lite via OpenRouter for rich-context
-#     summarization (VLM is optional for Hermes memory ops but useful).
-#   * secrets: both API keys come from Azure Key Vault via ExternalSecret
+#   * vlm: deepseek-v4-flash (V4 Flash 0731 build) via DeepSeek DIRECT
+#     (api.deepseek.com) for rich-context summarization — cheaper than
+#     gemini-2.5-flash-lite via OpenRouter (no OR markup). VLM is optional for
+#     Hermes memory ops but useful.
+#   * secrets: all API keys come from Azure Key Vault via ExternalSecret
 #     (manifests/openviking/external-secret.yaml), injected as env, and the
-#     ${OPENVIKING_ROOT_API_KEY} / ${OPENROUTER_API_KEY} placeholders in ov.conf
-#     are expanded by OpenViking's config loader from those env vars — no secret
-#     value ever lands in the ConfigMap or git.
+#     ${OPENVIKING_ROOT_API_KEY} / ${OPENROUTER_API_KEY} / ${DEEPSEEK_API_KEY}
+#     placeholders in ov.conf are expanded by OpenViking's config loader from
+#     those env vars — no secret value ever lands in the ConfigMap or git.
 
 replicaCount: 1
 
@@ -102,9 +104,9 @@ config:
       input: "text"
   vlm:
     provider: openai
-    api_key: "${OPENROUTER_API_KEY}"
-    api_base: "https://openrouter.ai/api/v1"
-    model: "google/gemini-2.5-flash-lite"
+    api_key: "${DEEPSEEK_API_KEY}"
+    api_base: "https://api.deepseek.com/v1"
+    model: "deepseek-v4-flash"
     temperature: 0.0
     max_retries: 2
     max_concurrent: 4
@@ -122,3 +124,8 @@ extraEnv:
       secretKeyRef:
         name: openviking-secrets
         key: openrouter-api-key
+  - name: DEEPSEEK_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: openviking-secrets
+        key: deepseek-api-key
