@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-cron-post-script
+  namespace: hermes
+  annotations:
+    hermes.nousresearch.com/description: >-
+      Cron post_script completion hook for the pinned upstream hermes-agent
+      image (nousresearch/hermes-agent@sha256:ccc46f54...). The hook was
+      implemented and test-verified locally on 2026-08-13 but the upstream
+      image does not ship it; the deployment applies this patch to the source
+      at pod start (initContainer -> /agent-src for the WebUI install,
+      gateway command wrapper -> /opt/hermes for the live scheduler).
+      Removal: delete this ConfigMap and the deployment wiring once the
+      upstream image includes the feature.
+data:
+  apply_patch.py: |
+    #!/usr/bin/env python3
+    """Apply the Hermes cron post-script completion hook to an agent source tree.
+
+    Usage: python3 apply_patch.py <source_root>
+
+    Reads spec.json from the same directory as this script. Each hunk is an exact
+    (old, new) string replacement against one file in the source tree. The hook is
+    idempotent: a hunk whose old anchor is absent but whose new text is already
+    present counts as already-applied.
+
+    Exit codes:
+      0  all hunks applied or already applied
+      2  one or more hunks could not be applied (anchor missing AND new text
+         absent) — the caller decides whether that is fatal
+      1  bad spec / unreadable tree
+
+    Output lines are greppable in pod logs:
+      [post-script-patch] applied cron/scheduler.py hunk 1/2
+      [post-script-patch] already-applied tools/cronjob_tools.py hunk 4/5
+      [post-script-patch] MISMATCH cron/jobs.py hunk 2/5: anchor not found
+    """
+    import json
+    import sys
+    from pathlib import Path
+
+
+    def apply_tree(root: Path, hunks: list) -> int:
+        failures = 0
+        per_file: dict[str, list[dict]] = {}
+        for h in hunks:
+            per_file.setdefault(h["path"], []).append(h)
+
+        for rel, file_hunks in sorted(per_file.items()):
+            target = root / rel
+            if not target.is_file():
+                print(f"[post-script-patch] MISSING FILE {rel}", flush=True)
+                failures += len(file_hunks)
+                continue
+            text = target.read_text(encoding="utf-8")
+            for i, h in enumerate(file_hunks, 1):
+                old, new = h["old"], h["new"]
+                # Check "already applied" FIRST: several hunks keep their anchor
+                # inside the replacement text, so an anchor-presence test would
+                # re-apply (duplicate) the hunk on every pod restart.
+                if new in text:
+                    print(f"[post-script-patch] already-applied {rel} hunk {i}/{len(file_hunks)}", flush=True)
+                    continue
+                if old in text:
+                    if text.count(old) != 1:
+                        print(
+                            f"[post-script-patch] MISMATCH {rel} hunk {i}/{len(file_hunks)}: "
+                            f"anchor appears {text.count(old)} times (expected 1)",
+                            flush=True,
+                        )
+                        failures += 1
+                        continue
+                    text = text.replace(old, new, 1)
+                    print(f"[post-script-patch] applied {rel} hunk {i}/{len(file_hunks)}", flush=True)
+                else:
+                    print(
+                        f"[post-script-patch] MISMATCH {rel} hunk {i}/{len(file_hunks)}: "
+                        f"anchor not found",
+                        flush=True,
+                    )
+                    failures += 1
+            target.write_text(text, encoding="utf-8")
+        return 2 if failures else 0
+
+
+    def main() -> int:
+        if len(sys.argv) != 2:
+            print(__doc__, file=sys.stderr)
+            return 1
+        spec_path = Path(__file__).resolve().parent / "spec.json"
+        if not spec_path.is_file():
+            print(f"[post-script-patch] spec.json not found at {spec_path}", file=sys.stderr)
+            return 1
+        try:
+            spec = json.loads(spec_path.read_text(encoding="utf-8"))
+            hunks = spec["hunks"]
+        except Exception as exc:
+            print(f"[post-script-patch] bad spec: {exc}", file=sys.stderr)
+            return 1
+        root = Path(sys.argv[1]).resolve()
+        if not root.is_dir():
+            print(f"[post-script-patch] source root not a directory: {root}", file=sys.stderr)
+            return 1
+        return apply_tree(root, hunks)
+
+
+    if __name__ == "__main__":
+        sys.exit(main())
+  spec.json: |
+    {
+      "hunks": [
+        {
+          "new": "def _run_post_script(\n    script_path: str,\n    final_response: str,\n    metadata: dict[str, str],\n    workdir: Optional[str] = None,\n) -> tuple[bool, str]:\n    \"\"\"Run a post-completion cron hook with the final response on stdin.\n\n    Post scripts use the same containment and sanitized environment contract as\n    pre-run scripts, but are invoked only after an agent produced a non-silent\n    successful response. They receive the response on stdin and a deliberately\n    small, non-secret metadata environment. Their stdout is diagnostic only;\n    a non-zero exit makes the cron delivery outcome fail.\n    \"\"\"\n    scripts_dir = _get_hermes_home() / \"scripts\"\n    scripts_dir.mkdir(parents=True, exist_ok=True)\n    scripts_dir_resolved = scripts_dir.resolve()\n    try:\n        raw = Path(script_path).expanduser()\n        path = raw.resolve() if raw.is_absolute() else (scripts_dir / raw).resolve()\n        path.relative_to(scripts_dir_resolved)\n    except (ValueError, RuntimeError, OSError):\n        return False, f\"Blocked: post script resolves outside the scripts directory: {script_path!r}\"\n    if not path.is_file():\n        return False, f\"Post script not found: {path}\"\n\n    suffix = path.suffix.lower()\n    if suffix in {\".sh\", \".bash\"}:\n        bash = shutil.which(\"bash\") or (\"/bin/bash\" if os.path.isfile(\"/bin/bash\") else None)\n        if bash is None:\n            return False, f\"Cannot run .sh/.bash post script {path.name!r}: bash not found on PATH.\"\n        argv, env_overlay = [bash, str(path)], {}\n    else:\n        python_exe, env_overlay = _windows_cron_python_invocation(sys.executable)\n        argv = [python_exe, str(path)]\n\n    try:\n        from tools.environments.local import build_subprocess_env\n        env = build_subprocess_env()\n        env.update(env_overlay)\n        env.update({str(k): str(v) for k, v in metadata.items()})\n        result = subprocess.run(\n            argv,\n            input=final_response,\n            capture_output=True,\n            text=True,\n            timeout=_get_script_timeout(),\n            cwd=workdir or str(path.parent),\n            env=env,\n        )\n        stdout = (result.stdout or \"\").strip()\n        stderr = (result.stderr or \"\").strip()\n        try:\n            from agent.redact import redact_sensitive_text\n            stdout, stderr = redact_sensitive_text(stdout), redact_sensitive_text(stderr)\n        except Exception:\n            stdout, stderr = \"[REDACTED - redaction failed]\", \"[REDACTED - redaction failed]\"\n        if result.returncode:\n            detail = stderr or stdout or \"no output\"\n            return False, f\"Post script exited with code {result.returncode}: {detail}\"\n        return True, stdout\n    except subprocess.TimeoutExpired:\n        return False, f\"Post script timed out after {_get_script_timeout()}s: {path}\"\n    except Exception as exc:\n        return False, f\"Post script execution failed: {exc}\"\n\ndef _run_job_script_with_claim_heartbeat(\n",
+          "old": "def _run_job_script_with_claim_heartbeat(\n",
+          "path": "cron/scheduler.py"
+        },
+        {
+          "new": "            if should_deliver:\n                # Completion hook: runs synchronously with the final response,\n                # after generation and before optional native platform delivery.\n                # This is deliberately NOT a second cron job and never scans\n                # saved output files, so it is completion-coupled with no race.\n                post_script = job.get(\"post_script\")\n                if success and isinstance(post_script, str) and post_script.strip():\n                    hook_ok, hook_output = _run_post_script(\n                        post_script.strip(),\n                        final_response,\n                        {\n                            \"HERMES_CRON_JOB_ID\": str(job[\"id\"]),\n                            \"HERMES_CRON_JOB_NAME\": str(job.get(\"name\", \"\")),\n                            \"HERMES_CRON_STATUS\": \"success\",\n                        },\n                        workdir=(job.get(\"workdir\") or \"\").strip() or None,\n                    )\n                    if not hook_ok:\n                        delivery_error = hook_output\n                        logger.error(\"Post script failed for job %s: %s\", job[\"id\"], hook_output)\n                    else:\n                        logger.info(\"Post script completed for job %s\", job[\"id\"])\n\n                if delivery_error is None:\n                    unresolved_origin = (\n                        _normalize_deliver_value(job.get(\"deliver\", \"local\")) == \"origin\"\n                        and not _resolve_delivery_targets(job)\n                    )\n                    try:\n                        delivery_error = _deliver_result(job, deliver_content, adapters=adapters, loop=loop)\n                    except Exception as de:\n                        delivery_error = str(de)\n                        logger.error(\"Delivery failed for job %s: %s\", job[\"id\"], de)\n",
+          "old": "            if should_deliver:\n                unresolved_origin = (\n                    _normalize_deliver_value(job.get(\"deliver\", \"local\")) == \"origin\"\n                    and not _resolve_delivery_targets(job)\n                )\n                try:\n                    delivery_error = _deliver_result(job, deliver_content, adapters=adapters, loop=loop)\n                except Exception as de:\n                    delivery_error = str(de)\n                    logger.error(\"Delivery failed for job %s: %s\", job[\"id\"], de)\n",
+          "path": "cron/scheduler.py"
+        },
+        {
+          "new": "    script: Optional[str] = None,\n    post_script: Optional[str] = None,\n    context_from: Optional[Union[str, List[str]]] = None,\n",
+          "old": "    script: Optional[str] = None,\n    context_from: Optional[Union[str, List[str]]] = None,\n",
+          "path": "cron/jobs.py"
+        },
+        {
+          "new": "        script: Optional path to a pre-run script whose stdout feeds the job. With\n                ``no_agent=True`` the script IS the job \u2014 its stdout is\n                delivered verbatim. Without ``no_agent``, its stdout is\n                injected into the agent's prompt as context.\n        post_script: Optional path to a completion hook under ~/.hermes/scripts/.\n                It runs after a successful non-silent agent response, receives\n                that final response on stdin, and a small non-secret metadata\n                environment. A non-zero exit records delivery failure.\n",
+          "old": "        script: Optional path to a script whose stdout feeds the job. With\n                ``no_agent=True`` the script IS the job \u2014 its stdout is\n                delivered verbatim. Without ``no_agent``, its stdout is\n                injected into the agent's prompt as context (data-collection /\n                change-detection pattern). Paths resolve under\n                ~/.hermes/scripts/; ``.sh`` / ``.bash`` files run via bash,\n                anything else via Python.\n",
+          "path": "cron/jobs.py"
+        },
+        {
+          "new": "    normalized_script = str(script).strip() if isinstance(script, str) else None\n    normalized_script = normalized_script or None\n    normalized_post_script = str(post_script).strip() if isinstance(post_script, str) else None\n    normalized_post_script = normalized_post_script or None\n    normalized_toolsets = [str(t).strip() for t in enabled_toolsets if str(t).strip()] if enabled_toolsets else None\n",
+          "old": "    normalized_script = str(script).strip() if isinstance(script, str) else None\n    normalized_script = normalized_script or None\n    normalized_toolsets = [str(t).strip() for t in enabled_toolsets if str(t).strip()] if enabled_toolsets else None\n",
+          "path": "cron/jobs.py"
+        },
+        {
+          "new": "        \"script\": normalized_script,\n        \"post_script\": normalized_post_script,\n        \"no_agent\": normalized_no_agent,\n",
+          "old": "        \"script\": normalized_script,\n        \"no_agent\": normalized_no_agent,\n",
+          "path": "cron/jobs.py"
+        },
+        {
+          "new": "            # Normalize script fields the same way create_job does (empty\n            # string clears the field).\n            for _script_field in (\"script\", \"post_script\", \"monitor_script\", \"monitor_url\"):\n                if _script_field in updates:\n                    _mv = updates[_script_field]\n                    _mv = str(_mv).strip() if isinstance(_mv, str) else None\n                    updates[_script_field] = _mv or None\n",
+          "old": "            # Normalize monitor fields the same way create_job does (empty\n            # string clears the field).\n            for _mon_field in (\"monitor_script\", \"monitor_url\"):\n                if _mon_field in updates:\n                    _mv = updates[_mon_field]\n                    _mv = str(_mv).strip() if isinstance(_mv, str) else None\n                    updates[_mon_field] = _mv or None\n",
+          "path": "cron/jobs.py"
+        },
+        {
+          "new": "    script: Optional[str] = None,\n    post_script: Optional[str] = None,\n    context_from: Optional[Union[str, List[str]]] = None,\n",
+          "old": "    script: Optional[str] = None,\n    context_from: Optional[Union[str, List[str]]] = None,\n",
+          "path": "tools/cronjob_tools.py"
+        },
+        {
+          "new": "            # Validate script paths before storing.\n            for _candidate in (script, post_script):\n                if _candidate:\n                    script_error = _validate_cron_script_path(_candidate)\n                    if script_error:\n                        return tool_error(script_error, success=False)\n",
+          "old": "            # Validate script path before storing\n            if script:\n                script_error = _validate_cron_script_path(script)\n                if script_error:\n                    return tool_error(script_error, success=False)\n",
+          "path": "tools/cronjob_tools.py"
+        },
+        {
+          "new": "                    script=_normalize_optional_job_value(script),\n                    post_script=_normalize_optional_job_value(post_script),\n                    context_from=context_from,\n",
+          "old": "                    script=_normalize_optional_job_value(script),\n                    context_from=context_from,\n",
+          "path": "tools/cronjob_tools.py"
+        },
+        {
+          "new": "            if post_script is not None:\n                if post_script:\n                    post_error = _validate_cron_script_path(post_script)\n                    if post_error:\n                        return tool_error(post_error, success=False)\n                updates[\"post_script\"] = (\n                    _normalize_optional_job_value(post_script) if post_script else None\n                )\n            if monitor_script is not None:\n",
+          "old": "            if monitor_script is not None:\n",
+          "path": "tools/cronjob_tools.py"
+        },
+        {
+          "new": "    if job.get(\"script\"):\n        result[\"script\"] = job[\"script\"]\n    if job.get(\"post_script\"):\n        result[\"post_script\"] = job[\"post_script\"]\n",
+          "old": "    if job.get(\"script\"):\n        result[\"script\"] = job[\"script\"]\n",
+          "path": "tools/cronjob_tools.py"
+        }
+      ],
+      "version": 1
+    }
