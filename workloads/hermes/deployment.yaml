@@ -17,6 +17,8 @@ spec:
       app: hermes
   template:
     metadata:
+      annotations:
+        hermes.nousresearch.com/restart-at: "2026-08-14T12:27:51Z"
       labels:
         app: hermes
     spec:
