@@ -7,25 +7,29 @@ data:
   todoist_mcp.py: |
     #!/usr/bin/env python3
     """Todoist MCP server with read and task/project/comment management operations.
-    
+
     The OAuth token is never embedded in this file.  The server reuses the existing
     Todoist OAuth token stored under the active Hermes home (or the legacy WebUI
     profile path when running inside the WebUI container).
     """
     from __future__ import annotations
-    
+
+    import fcntl
     import json
     import os
     import sys
+    import tempfile
+    import time
     import urllib.error
     import urllib.parse
     import urllib.request
     from pathlib import Path
     from typing import Any
-    
+
     API = "https://api.todoist.com/api/v1"
-    
-    
+    TOKEN_ENDPOINT = "https://todoist.com/oauth/access_token"
+
+
     def _token_candidates() -> list[Path]:
         explicit = os.environ.get("TODOIST_TOKEN_FILE")
         candidates: list[Path] = []
@@ -40,31 +44,123 @@ data:
                 Path("/home/hermes/.hermes/mcp-tokens/todoist-direct.json"),
             ]
         )
-        # Preserve order while removing duplicates.
         return list(dict.fromkeys(candidates))
-    
-    
-    def token() -> str:
+
+
+    def _client_candidates(token_path: Path) -> list[Path]:
+        explicit = os.environ.get("TODOIST_CLIENT_FILE")
+        candidates = [Path(explicit)] if explicit else []
+        candidates.extend(
+            [
+                token_path.with_name("todoist.client.json"),
+                Path("/home/hermeswebui/.hermes/mcp-tokens/todoist.client.json"),
+                Path("/home/hermes/.hermes/mcp-tokens/todoist.client.json"),
+            ]
+        )
+        return list(dict.fromkeys(candidates))
+
+
+    def _load_token() -> tuple[Path, dict[str, Any]]:
         for path in _token_candidates():
             try:
                 data = json.loads(path.read_text())
-                value = data["access_token"]
-                if isinstance(value, str) and value:
-                    return value
+                if isinstance(data, dict) and isinstance(data.get("access_token"), str):
+                    return path, data
             except (OSError, KeyError, TypeError, ValueError):
                 continue
         raise RuntimeError(
             "Todoist is not authorized. Existing OAuth token was not found in the Hermes profile."
         )
-    
-    
+
+
+    def token() -> str:
+        return _load_token()[1]["access_token"]
+
+
+    def _client_id(token_path: Path) -> str:
+        for path in _client_candidates(token_path):
+            try:
+                data = json.loads(path.read_text())
+                value = data.get("client_id")
+                if isinstance(value, str) and value:
+                    return value
+            except (OSError, AttributeError, TypeError, ValueError):
+                continue
+        raise RuntimeError("Todoist OAuth client registration is missing from the Hermes profile.")
+
+
+    def _write_json_atomic(path: Path, data: dict[str, Any]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        try:
+            os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(data, handle, indent=2)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_name, path)
+            os.chmod(path, 0o600)
+        finally:
+            try:
+                os.unlink(tmp_name)
+            except FileNotFoundError:
+                pass
+
+
+    def _refresh_access_token(path: Path, stale_access_token: str) -> dict[str, Any]:
+        """Refresh once, serialize concurrent refreshes, and persist both tokens."""
+        lock_path = path.with_name(f".{path.name}.lock")
+        with lock_path.open("a+") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            current = json.loads(path.read_text())
+            # Another request may have refreshed while this request was waiting.
+            if current.get("access_token") != stale_access_token:
+                return current
+            refresh_token = current.get("refresh_token")
+            if not isinstance(refresh_token, str) or not refresh_token:
+                raise RuntimeError("Todoist access token expired and no refresh token is available.")
+            form = urllib.parse.urlencode(
+                {
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                    "client_id": _client_id(path),
+                    "resource": "https://ai.todoist.net/mcp",
+                }
+            ).encode("utf-8")
+            request = urllib.request.Request(
+                TOKEN_ENDPOINT,
+                data=form,
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": "application/json",
+                },
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    refreshed = json.loads(response.read())
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", "replace")[:500]
+                raise RuntimeError(
+                    f"Todoist OAuth refresh failed (HTTP {exc.code}). Re-authorize Todoist if needed: {detail}"
+                ) from exc
+            if not isinstance(refreshed, dict) or not refreshed.get("access_token"):
+                raise RuntimeError("Todoist OAuth refresh returned no access token.")
+            merged = dict(current)
+            merged.update(refreshed)
+            merged["obtained_at"] = int(time.time())
+            _write_json_atomic(path, merged)
+            return merged
+
+
     def _json_body(response: Any) -> Any:
         raw = response.read()
         if not raw:
             return None
         return json.loads(raw)
-    
-    
+
+
     def api_request(
         method: str,
         path: str,
@@ -77,37 +173,46 @@ data:
             clean = {k: str(v) for k, v in params.items() if v is not None}
             if clean:
                 url += "?" + urllib.parse.urlencode(clean)
-        headers = {
-            "Authorization": "Bearer " + token(),
-            "Accept": "application/json",
-        }
         data = None
         if body is not None:
-            headers["Content-Type"] = "application/json"
             data = json.dumps(body).encode("utf-8")
-        request = urllib.request.Request(url, headers=headers, method=method, data=data)
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                return _json_body(response)
-        except urllib.error.HTTPError as exc:
-            body_text = exc.read().decode("utf-8", "replace")[:2000]
-            raise RuntimeError(f"Todoist API returned HTTP {exc.code}: {body_text}") from exc
-        except urllib.error.URLError as exc:
-            raise RuntimeError(f"Todoist API request failed: {exc.reason}") from exc
-    
-    
+        token_path, token_data = _load_token()
+        access_token = token_data["access_token"]
+        for attempt in range(2):
+            headers = {
+                "Authorization": "Bearer " + access_token,
+                "Accept": "application/json",
+            }
+            if body is not None:
+                headers["Content-Type"] = "application/json"
+            request = urllib.request.Request(url, headers=headers, method=method, data=data)
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    return _json_body(response)
+            except urllib.error.HTTPError as exc:
+                body_text = exc.read().decode("utf-8", "replace")[:2000]
+                if exc.code == 401 and attempt == 0:
+                    token_data = _refresh_access_token(token_path, access_token)
+                    access_token = token_data["access_token"]
+                    continue
+                raise RuntimeError(f"Todoist API returned HTTP {exc.code}: {body_text}") from exc
+            except urllib.error.URLError as exc:
+                raise RuntimeError(f"Todoist API request failed: {exc.reason}") from exc
+        raise RuntimeError("Todoist API request exhausted its refresh retry.")
+
+
     def api_get(path: str, params: dict[str, object] | None = None) -> Any:
         """Compatibility helper used by the migration scripts in /workspace."""
         return api_request("GET", path, params=params)
-    
-    
+
+
     def _id(kind: str, args: dict[str, Any]) -> str:
         value = args.get(f"{kind}_id")
         if value is None or not str(value).strip():
             raise ValueError(f"{kind}_id is required")
         return str(value)
-    
-    
+
+
     def _task_fields(args: dict[str, Any], *, create: bool) -> dict[str, Any]:
         allowed = (
             "content",
@@ -133,8 +238,8 @@ data:
         if create and not body.get("content"):
             raise ValueError("content is required")
         return body
-    
-    
+
+
     TOOLS = [
         {
             "name": "list_tasks",
@@ -352,8 +457,8 @@ data:
             },
         },
     ]
-    
-    
+
+
     def call(name: str, args: dict[str, Any]) -> Any:
         if name == "list_tasks":
             return api_get(
@@ -425,8 +530,8 @@ data:
         if name == "delete_comment":
             return api_request("DELETE", "/comments/" + urllib.parse.quote(_id("comment", args), safe=""))
         raise ValueError(f"Unknown tool: {name}")
-    
-    
+
+
     def _annotations(name: str) -> dict[str, bool]:
         destructive = name in {"delete_task", "delete_project", "delete_comment"}
         read_only = name.startswith("list_") or name.startswith("get_")
@@ -436,8 +541,8 @@ data:
             "idempotentHint": read_only or name.startswith("update_") or destructive,
             "openWorldHint": False,
         }
-    
-    
+
+
     def respond(msg_id: object, result: object = None, error: str | None = None) -> None:
         payload: dict[str, Any] = {"jsonrpc": "2.0", "id": msg_id}
         if error is not None:
@@ -446,8 +551,8 @@ data:
             payload["result"] = result
         sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\n")
         sys.stdout.flush()
-    
-    
+
+
     def main() -> None:
         for line in sys.stdin:
             message: dict[str, Any] = {}
@@ -465,6 +570,11 @@ data:
                     )
                 elif method == "notifications/initialized":
                     continue
+                elif method == "ping":
+                    # MCP protocol requires servers to answer ping with an empty
+                    # result; Hermes uses it as its keepalive probe. Without this
+                    # the client treats the server as degraded and reconnect-loops.
+                    respond(msg_id, {})
                 elif method == "tools/list":
                     respond(msg_id, {"tools": [{**tool, "annotations": _annotations(tool["name"])} for tool in TOOLS]})
                 elif method == "tools/call":
@@ -478,7 +588,29 @@ data:
                     respond(msg_id, error=f"Unsupported method: {method}")
             except Exception as exc:  # Return MCP errors without killing the server process.
                 respond(message.get("id"), error=str(exc))
-    
-    
+
+
     if __name__ == "__main__":
         main()
+  todoist_mcp_launcher.sh: |
+    #!/bin/sh
+    # Resolve a Python interpreter for the Todoist MCP server that exists in the
+    # CURRENT container, then exec the server script with it.
+    #
+    # Why this exists: the gateway container and the WebUI container mount the same
+    # PVC but have different filesystems. /app/venv/bin/python exists only in the
+    # WebUI container; /opt/hermes/.venv/bin/python exists only in the gateway
+    # container. A single hardcoded interpreter path in the MCP config therefore
+    # fails in one of the two (FileNotFoundError -> "Connection closed" -> park ->
+    # 300s self-probe loop = log spam). This launcher picks whichever exists.
+    #
+    # Usage: todoist_mcp_launcher.sh /path/to/todoist_mcp.py
+
+    for py in /opt/hermes/.venv/bin/python /app/venv/bin/python python3; do
+      if command -v "$py" >/dev/null 2>&1 || [ -x "$py" ]; then
+        exec "$py" "$@"
+      fi
+    done
+
+    echo "todoist-mcp: no Python interpreter found" >&2
+    exit 127
