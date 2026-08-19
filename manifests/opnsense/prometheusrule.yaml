@@ -10,7 +10,7 @@ spec:
     - name: opnsense.wireguard
       rules:
         - alert: OpnsenseWireGuardPeerConnected
-          expr: resets(opnsense_wireguard_peer_last_handshake_seconds[10m]) > 0
+          expr: changes(opnsense_wireguard_peer_last_handshake_seconds[10m]) > 0
           for: 0s
           labels:
             severity: info
@@ -20,17 +20,17 @@ spec:
 
         - alert: OpnsenseWireGuardPeerOffline
           expr: opnsense_wireguard_peer_status == 0
-          for: 30m
+          for: 24h
           labels:
             severity: warning
           annotations:
             summary: "WireGuard peer offline"
-            description: "WireGuard peer {{ $labels.peer_name }} has been offline for more than 30 minutes."
+            description: "WireGuard peer {{ $labels.peer_name }} has been offline for more than 24 hours."
 
     - name: opnsense.system
       rules:
         - alert: OpnsenseRebootPending
-          expr: opnsense_firmware_needs_reboot == 1
+          expr: opnsense_firmware_needs_reboot{needs_reboot!="undefined"}
           for: 1h
           labels:
             severity: warning
