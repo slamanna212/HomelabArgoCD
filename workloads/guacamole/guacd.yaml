@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: guacd
-          image: guacamole/guacd:1.5.5
+          image: ghcr.io/skylark-software/janua:1.0.1
           ports:
             - containerPort: 4822
           resources:
