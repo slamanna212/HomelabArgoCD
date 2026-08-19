@@ -15,16 +15,19 @@ spec:
     spec:
       containers:
         - name: guacd
-          image: ghcr.io/skylark-software/janua:1.0.1
+          image: ghcr.io/skylark-software/janua:1.2.0-beta.2
           ports:
             - containerPort: 4822
+          env:
+            - name: GUACD_LOG_LEVEL
+              value: debug
           resources:
             requests:
-              memory: 64Mi
-              cpu: 50m
+              memory: 128Mi
+              cpu: 100m
             limits:
-              memory: 256Mi
-              cpu: 500m
+              memory: 512Mi
+              cpu: 1000m
 ---
 apiVersion: v1
 kind: Service
