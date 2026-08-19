@@ -9,22 +9,35 @@ spec:
   groups:
     - name: opnsense.wireguard
       rules:
-        - alert: OpnsenseWireGuardPeerConnected
-          expr: changes(opnsense_wireguard_peer_last_handshake_seconds[10m]) > 0
+        # EVENT rules (fire once per transition, auto-resolve, one-shot Discord via
+        # the WireGuardVPN.* alertmanager route -> discord-vpn receiver, send_resolved: false)
+        - alert: WireGuardVPNPeerConnected
+          expr: opnsense_wireguard_peer_last_handshake_seconds > 0 and (time() - opnsense_wireguard_peer_last_handshake_seconds) < 300 and opnsense_wireguard_peer_last_handshake_seconds offset 5m == 0
           for: 0s
           labels:
             severity: info
           annotations:
             summary: "WireGuard peer connected"
-            description: "WireGuard peer {{ $labels.peer_name }} established a new handshake on {{ $labels.device_name }}."
+            description: "WireGuard peer {{ $labels.peer_name }} connected to {{ $labels.device_name }}."
 
-        - alert: OpnsenseWireGuardPeerOffline
-          expr: opnsense_wireguard_peer_status == 0
+        - alert: WireGuardVPNPeerDisconnected
+          expr: opnsense_wireguard_peer_status == 0 and opnsense_wireguard_peer_status offset 5m > 0
+          for: 0s
+          labels:
+            severity: warning
+          annotations:
+            summary: "WireGuard peer disconnected"
+            description: "WireGuard peer {{ $labels.peer_name }} disconnected from {{ $labels.device_name }}."
+
+        # Long-absence escalation: fires only for peers that HAVE connected before
+        # (handshake > 0), so never-connected/idle devices never trigger it.
+        - alert: WireGuardVPNPeerOffline
+          expr: opnsense_wireguard_peer_status == 0 and opnsense_wireguard_peer_last_handshake_seconds > 0
           for: 24h
           labels:
             severity: warning
           annotations:
-            summary: "WireGuard peer offline"
+            summary: "WireGuard peer offline 24h+"
             description: "WireGuard peer {{ $labels.peer_name }} has been offline for more than 24 hours."
 
     - name: opnsense.system
