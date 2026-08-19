@@ -8,10 +8,12 @@ spec:
   selector:
     matchLabels:
       app: guacamole
+      component: web
   template:
     metadata:
       labels:
         app: guacamole
+        component: web
     spec:
       initContainers:
         - name: wait-for-db
@@ -49,7 +51,7 @@ spec:
               value: "guacadmin"
           readinessProbe:
             httpGet:
-              path: /
+              path: /guacamole/
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
@@ -74,6 +76,7 @@ spec:
   externalTrafficPolicy: Local
   selector:
     app: guacamole
+    component: web
   ports:
     - name: http
       appProtocol: kubernetes.io/ws
