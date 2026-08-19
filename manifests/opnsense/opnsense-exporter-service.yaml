@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: opnsense-exporter
   namespace: monitoring
+  labels:
+    app: opnsense-exporter
 spec:
   selector:
     app: opnsense-exporter
