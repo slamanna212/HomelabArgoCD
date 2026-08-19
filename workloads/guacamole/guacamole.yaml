@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacamole
+  namespace: guacamole
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guacamole
+  template:
+    metadata:
+      labels:
+        app: guacamole
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: postgres:17-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h guacamole-postgresql -p 5432 -U guacamole_user; do sleep 3; done
+      containers:
+        - name: guacamole
+          image: guacamole/guacamole:1.5.5
+          ports:
+            - containerPort: 8080
+          env:
+            - name: GUACD_HOSTNAME
+              value: guacd
+            - name: GUACD_PORT
+              value: "4822"
+            - name: POSTGRESQL_HOSTNAME
+              value: guacamole-postgresql
+            - name: POSTGRESQL_PORT
+              value: "5432"
+            - name: POSTGRESQL_DATABASE
+              value: guacamole_db
+            - name: POSTGRESQL_USER
+              value: guacamole_user
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-postgres-secret
+                  key: postgres-password
+            - name: POSTGRESQL_AUTO_CREATE_ACCOUNTS
+              value: "true"
+            - name: GUACAMOLE_ADMIN_PASSWORD
+              value: "guacadmin"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 1000m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guacamole
+  namespace: guacamole
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 10.1.20.206
+    kube-vip.io/ignore: "true"
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: guacamole
+  ports:
+    - name: http
+      appProtocol: kubernetes.io/ws
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

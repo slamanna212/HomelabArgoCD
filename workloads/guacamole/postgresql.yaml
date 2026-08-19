@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: guacamole-postgresql
+  namespace: guacamole
+spec:
+  serviceName: guacamole-postgresql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guacamole
+      component: postgresql
+  template:
+    metadata:
+      labels:
+        app: guacamole
+        component: postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: guacamole_db
+            - name: POSTGRES_USER
+              value: guacamole_user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-postgres-secret
+                  key: postgres-password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "guacamole_user", "-d", "guacamole_db"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guacamole-postgresql
+  namespace: guacamole
+spec:
+  selector:
+    app: guacamole
+    component: postgresql
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
