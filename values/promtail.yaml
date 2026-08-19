@@ -38,10 +38,3 @@ config:
             action: drop
         pipeline_stages:
           - cri: {}
-          - match:
-              selector: '{job="network-syslog"} |~ "UNIFIvpnType=wireguard"'
-              stages:
-                - regex:
-                    expression: 'CEF: \d+\|[^|]+\|[^|]+\|[^|]+\|\d+\|(?P<vpn_event>[^|]+)\|'
-                - labels:
-                    vpn_event:

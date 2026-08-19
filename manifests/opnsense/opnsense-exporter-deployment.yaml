@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opnsense-exporter
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opnsense-exporter
+  template:
+    metadata:
+      labels:
+        app: opnsense-exporter
+    spec:
+      containers:
+        - name: opnsense-exporter
+          image: ghcr.io/athennamind/opnsense-exporter:0.0.16
+          args:
+            - --opnsense.protocol=https
+            - --opnsense.address=10.1.10.1
+            - --opnsense.insecure
+            - --exporter.instance-label=opnsense
+            - --web.listen-address=:8080
+          env:
+            - name: OPNSENSE_EXPORTER_OPS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: opnsense-exporter-config
+                  key: api-key
+            - name: OPNSENSE_EXPORTER_OPS_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: opnsense-exporter-config
+                  key: api-secret
+          ports:
+            - name: metrics
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi

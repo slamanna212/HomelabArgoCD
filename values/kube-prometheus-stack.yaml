@@ -23,6 +23,11 @@ prometheus:
     probeSelectorNilUsesHelmValues: false
     serviceMonitorNamespaceSelector: {}
     podMonitorNamespaceSelector: {}
+    additionalScrapeConfigs:
+      - job_name: opnsense-node-exporter
+        static_configs:
+          - targets: ["10.1.10.1:9100"]
+            labels: {cluster: homelab}
 
 # -- Grafana --
 grafana:

@@ -1,0 +1,48 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: opnsense-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: opnsense.wireguard
+      rules:
+        - alert: OpnsenseWireGuardPeerConnected
+          expr: resets(opnsense_wireguard_peer_last_handshake_seconds[10m]) > 0
+          for: 0s
+          labels:
+            severity: info
+          annotations:
+            summary: "WireGuard peer connected"
+            description: "WireGuard peer {{ $labels.peer_name }} established a new handshake on {{ $labels.device_name }}."
+
+        - alert: OpnsenseWireGuardPeerOffline
+          expr: opnsense_wireguard_peer_status == 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "WireGuard peer offline"
+            description: "WireGuard peer {{ $labels.peer_name }} has been offline for more than 30 minutes."
+
+    - name: opnsense.system
+      rules:
+        - alert: OpnsenseRebootPending
+          expr: opnsense_firmware_needs_reboot == 1
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "OPNsense reboot pending"
+            description: "OPNsense has a pending reboot after a firmware/package update."
+
+        - alert: OpnsenseExporterDown
+          expr: absent(up{job="opnsense-exporter"})
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "OPNsense exporter is down"
+            description: "No metrics received from the OPNsense exporter for 5 minutes."
