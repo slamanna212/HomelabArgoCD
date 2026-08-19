@@ -8,7 +8,6 @@ spec:
   selector:
     matchLabels:
       app: guacamole
-      component: web
   template:
     metadata:
       labels:
