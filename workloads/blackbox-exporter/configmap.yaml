@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blackbox-exporter-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: blackbox-exporter
+data:
+  blackbox.yml: |
+    modules:
+      icmp:
+        prober: icmp
+        timeout: 5s
+        icmp:
+          preferred_ip_protocol: ip4

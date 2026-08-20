@@ -21,6 +21,7 @@ prometheus:
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
     probeSelectorNilUsesHelmValues: false
+    probeNamespaceSelector: {}
     serviceMonitorNamespaceSelector: {}
     podMonitorNamespaceSelector: {}
     additionalScrapeConfigs:

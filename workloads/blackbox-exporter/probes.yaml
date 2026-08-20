@@ -1,0 +1,79 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: internet-icmp-cloudflare
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: internet-icmp
+  interval: 60s
+  module: icmp
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - 1.1.1.1
+      labels:
+        probe_target: Cloudflare
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: internet-icmp-google
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: internet-icmp
+  interval: 60s
+  module: icmp
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - 8.8.8.8
+      labels:
+        probe_target: Google
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: internet-icmp-microsoft-azure-east-us-1
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: internet-icmp
+  interval: 60s
+  module: icmp
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - eastus.api.cognitive.microsoft.com
+      labels:
+        probe_target: Microsoft Azure East US 1
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: internet-icmp-aws-us-east-1
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: internet-icmp
+  interval: 60s
+  module: icmp
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - 3.80.0.0
+      labels:
+        probe_target: AWS us-east-1
