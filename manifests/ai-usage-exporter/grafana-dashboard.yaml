@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-usage-grafana-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ai-usage.json: |
+    {
+      "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "name": "Annotations & Alerts", "type": "dashboard"}]},
+      "editable": true,
+      "graphTooltip": 1,
+      "panels": [
+        {"id": 1, "type": "row", "title": "Collector health", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}},
+        {"id": 2, "type": "table", "title": "Provider health", "gridPos": {"h": 7, "w": 16, "x": 0, "y": 1}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {}, "overrides": []}, "options": {"showHeader": true}, "targets": [{"refId": "A", "expr": "ai_provider_up", "format": "table", "instant": true, "legendFormat": "{{provider}}"}]},
+        {"id": 3, "type": "stat", "title": "Collector", "gridPos": {"h": 3, "w": 8, "x": 16, "y": 1}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "none", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}, "mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}]}, "overrides": []}, "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value", "graphMode": "none"}, "targets": [{"refId": "A", "expr": "ai_collector_up", "instant": true}]},
+        {"id": 4, "type": "timeseries", "title": "Provider fetch failures", "gridPos": {"h": 5, "w": 8, "x": 16, "y": 4}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "none", "min": 0, "max": 1}, "overrides": []}, "targets": [{"refId": "A", "expr": "ai_provider_error", "legendFormat": "{{provider}}", "range": true}]},
+        {"id": 5, "type": "row", "title": "Claude and Codex subscription windows", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 8}},
+        {"id": 6, "type": "bargauge", "title": "Current usage", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 80}, {"color": "red", "value": 95}]}, "color": {"mode": "thresholds"}}, "overrides": []}, "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}, "targets": [{"refId": "A", "expr": "ai_usage_used_percent{provider=~\"claude|codex\"}", "legendFormat": "{{provider}} {{window}}", "range": true}]},
+        {"id": 7, "type": "timeseries", "title": "Usage history", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 80}, {"color": "red", "value": 95}]}, "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "never"}}, "overrides": []}, "options": {"legend": {"displayMode": "list", "placement": "bottom", "calcs": ["last"]}, "tooltip": {"mode": "multi", "sort": "desc"}}, "targets": [{"refId": "A", "expr": "ai_usage_used_percent{provider=~\"claude|codex\"}", "legendFormat": "{{provider}} {{window}}", "range": true}]},
+        {"id": 8, "type": "timeseries", "title": "Time to reset", "gridPos": {"h": 6, "w": 12, "x": 0, "y": 17}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []}, "targets": [{"refId": "A", "expr": "ai_usage_reset_seconds{provider=~\"claude|codex\"}", "legendFormat": "{{provider}} {{window}}", "range": true}]},
+        {"id": 9, "type": "table", "title": "All active usage buckets", "gridPos": {"h": 6, "w": 12, "x": 12, "y": 17}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {}, "overrides": []}, "options": {"showHeader": true}, "targets": [{"refId": "A", "expr": "ai_usage_bucket_active == 1", "format": "table", "instant": true, "legendFormat": "{{provider}} {{window}}"}]},
+        {"id": 10, "type": "row", "title": "Claude extra usage", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23}},
+        {"id": 11, "type": "stat", "title": "Extra usage used", "gridPos": {"h": 5, "w": 8, "x": 0, "y": 24}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 80}, {"color": "red", "value": 95}]}}, "overrides": []}, "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value", "graphMode": "area"}, "targets": [{"refId": "A", "expr": "ai_extra_usage_used_percent{provider=\"claude\"}", "instant": true}]},
+        {"id": 12, "type": "timeseries", "title": "Extra usage consumed and limit", "gridPos": {"h": 5, "w": 16, "x": 8, "y": 24}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "currencyUSD"}, "overrides": []}, "targets": [{"refId": "A", "expr": "ai_extra_usage_used{provider=\"claude\"}", "legendFormat": "used", "range": true}, {"refId": "B", "expr": "ai_extra_usage_limit{provider=\"claude\"}", "legendFormat": "limit", "range": true}]},
+        {"id": 13, "type": "row", "title": "API balances and provider plans", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29}},
+        {"id": 14, "type": "bargauge", "title": "OpenRouter and DeepSeek balances", "gridPos": {"h": 7, "w": 12, "x": 0, "y": 30}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "currencyUSD", "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 10}, {"color": "green", "value": 25}]}}, "overrides": []}, "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}, "targets": [{"refId": "A", "expr": "ai_credits_remaining{provider=~\"openrouter|deepseek\"}", "legendFormat": "{{provider}}", "range": true}]},
+        {"id": 15, "type": "timeseries", "title": "Balance history", "gridPos": {"h": 7, "w": 12, "x": 12, "y": 30}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "currencyUSD"}, "overrides": []}, "targets": [{"refId": "A", "expr": "ai_credits_remaining{provider=~\"openrouter|deepseek\"}", "legendFormat": "{{provider}}", "range": true}]},
+        {"id": 16, "type": "table", "title": "Provider plans", "gridPos": {"h": 5, "w": 24, "x": 0, "y": 37}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {}, "overrides": []}, "options": {"showHeader": true}, "targets": [{"refId": "A", "expr": "ai_provider_plan_info", "format": "table", "instant": true, "legendFormat": "{{provider}} {{plan}}"}]}
+      ],
+      "refresh": "5m",
+      "schemaVersion": 39,
+      "tags": ["ai", "usage", "claude", "codex"],
+      "templating": {"list": []},
+      "time": {"from": "now-7d", "to": "now"},
+      "timezone": "browser",
+      "title": "AI Allowance & Usage",
+      "uid": "ai-usage-dashboard",
+      "version": 2
+    }
