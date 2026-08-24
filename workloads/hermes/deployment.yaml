@@ -319,7 +319,7 @@ spec:
             allowPrivilegeEscalation: false
           command: ["/bin/sh", "-ec"]
           args:
-            - exec python3 /app/startup.sh
+            - exec /app/startup.sh
           env:
             - name: HOME
               value: /data
