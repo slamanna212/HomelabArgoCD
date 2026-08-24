@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-usage-exporter
+  namespace: hermes
+  labels:
+    app: ai-usage-exporter
+    component: metrics
+spec:
+  selector:
+    app: hermes
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100

@@ -55,8 +55,8 @@ spec:
               chown -R 1000:1000 /agent-src
               chmod -R u+rX /agent-src
 
-              mkdir -p /data/home /data/workspace
-              chown 1000:1000 /data/home /data/workspace
+              mkdir -p /data/home /data/workspace /data/ai-usage
+              chown 1000:1000 /data/home /data/workspace /data/ai-usage
 
               # Seed config.yaml exactly once. Hermes rewrites this file at runtime
               # (model switching from the WebUI, onboarding), so re-copying it on
@@ -101,6 +101,25 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+        # Install the only Python dependency into an emptyDir so the long-running
+        # collector can run unprivileged and restarts do not download packages.
+        - name: install-ai-collector-deps
+          image: python:3.12-alpine
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              pip install --no-cache-dir --target /python-packages prometheus-client==0.22.1
+              chown -R 1000:1000 /python-packages
+          volumeMounts:
+            - name: ai-collector-deps
+              mountPath: /python-packages
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
       containers:
         # The gateway process: Discord, cron/scheduled jobs, and the agent API on
         # 8642. This is what keeps working while you are away — the WebUI alone
@@ -289,6 +308,84 @@ spec:
               # Headroom for the dependency install at boot, which resolves and builds
               # the agent's full tree. Upstream's compose sets no memory limit at all.
               memory: 4Gi
+        # Native AI allowance collector. Claude uses its own persisted OAuth
+        # refresh-token lifecycle; Codex is read-only against the gateway auth store.
+        - name: ai-usage-collector
+          image: python:3.12-alpine
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+          command: ["/bin/sh", "-ec"]
+          args:
+            - exec /app/startup.sh
+          env:
+            - name: HOME
+              value: /data
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: PYTHONPATH
+              value: /python-packages
+            - name: CLAUDE_STATE
+              value: /data/claude/oauth.json
+            - name: CLAUDE_PENDING_STATE
+              value: /data/claude/oauth-pending.json
+            - name: GATEWAY_AUTH
+              value: /creds/home/auth.json
+            - name: REFRESH_INTERVAL
+              value: "300"
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: openrouter-api-key
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: deepseek-api-key
+          ports:
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            # Gateway's live auth store — read-only; the gateway owns refresh rotation.
+            - name: data
+              mountPath: /creds/home
+              subPath: home
+              readOnly: true
+            # Claude OAuth state and collector-local runtime state.
+            - name: data
+              mountPath: /data
+              subPath: ai-usage
+            - name: ai-collector-deps
+              mountPath: /python-packages
+              readOnly: true
+            - name: collector-scripts
+              mountPath: /app
+              readOnly: true
       terminationGracePeriodSeconds: 120
       volumes:
         - name: data
@@ -310,3 +407,9 @@ spec:
         - name: patches
           configMap:
             name: hermes-cron-post-script
+        - name: ai-collector-deps
+          emptyDir: {}
+        - name: collector-scripts
+          configMap:
+            name: ai-usage-collector
+            defaultMode: 0555
