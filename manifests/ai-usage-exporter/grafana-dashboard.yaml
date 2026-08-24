@@ -8,34 +8,1698 @@ metadata:
 data:
   ai-usage.json: |
     {
-      "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "name": "Annotations & Alerts", "type": "dashboard"}]},
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
       "editable": true,
+      "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
       "panels": [
-        {"id": 1, "type": "row", "title": "Collector health", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}},
-        {"id": 2, "type": "table", "title": "Provider health", "gridPos": {"h": 7, "w": 16, "x": 0, "y": 1}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {}, "overrides": []}, "options": {"showHeader": true}, "targets": [{"refId": "A", "expr": "ai_provider_up", "format": "table", "instant": true, "legendFormat": "{{provider}}"}]},
-        {"id": 3, "type": "stat", "title": "Collector", "gridPos": {"h": 3, "w": 8, "x": 16, "y": 1}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "none", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}, "mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}]}, "overrides": []}, "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value", "graphMode": "none"}, "targets": [{"refId": "A", "expr": "ai_collector_up", "instant": true}]},
-        {"id": 4, "type": "timeseries", "title": "Provider fetch failures", "gridPos": {"h": 5, "w": 8, "x": 16, "y": 4}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "none", "min": 0, "max": 1}, "overrides": []}, "targets": [{"refId": "A", "expr": "ai_provider_error", "legendFormat": "{{provider}}", "range": true}]},
-        {"id": 5, "type": "row", "title": "Claude and Codex subscription windows", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 8}},
-        {"id": 6, "type": "bargauge", "title": "Current usage", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 80}, {"color": "red", "value": 95}]}, "color": {"mode": "thresholds"}}, "overrides": []}, "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}, "targets": [{"refId": "A", "expr": "ai_usage_used_percent{provider=~\"claude|codex\"}", "legendFormat": "{{provider}} {{window}}", "range": true}]},
-        {"id": 7, "type": "timeseries", "title": "Usage history", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 80}, {"color": "red", "value": 95}]}, "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "never"}}, "overrides": []}, "options": {"legend": {"displayMode": "list", "placement": "bottom", "calcs": ["last"]}, "tooltip": {"mode": "multi", "sort": "desc"}}, "targets": [{"refId": "A", "expr": "ai_usage_used_percent{provider=~\"claude|codex\"}", "legendFormat": "{{provider}} {{window}}", "range": true}]},
-        {"id": 8, "type": "timeseries", "title": "Time to reset", "gridPos": {"h": 6, "w": 12, "x": 0, "y": 17}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []}, "targets": [{"refId": "A", "expr": "ai_usage_reset_seconds{provider=~\"claude|codex\"}", "legendFormat": "{{provider}} {{window}}", "range": true}]},
-        {"id": 9, "type": "table", "title": "All active usage buckets", "gridPos": {"h": 6, "w": 12, "x": 12, "y": 17}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {}, "overrides": []}, "options": {"showHeader": true}, "targets": [{"refId": "A", "expr": "ai_usage_bucket_active == 1", "format": "table", "instant": true, "legendFormat": "{{provider}} {{window}}"}]},
-        {"id": 10, "type": "row", "title": "Claude extra usage", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23}},
-        {"id": 11, "type": "stat", "title": "Extra usage used", "gridPos": {"h": 5, "w": 8, "x": 0, "y": 24}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 80}, {"color": "red", "value": 95}]}}, "overrides": []}, "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value", "graphMode": "area"}, "targets": [{"refId": "A", "expr": "ai_extra_usage_used_percent{provider=\"claude\"}", "instant": true}]},
-        {"id": 12, "type": "timeseries", "title": "Extra usage consumed and limit", "gridPos": {"h": 5, "w": 16, "x": 8, "y": 24}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "currencyUSD"}, "overrides": []}, "targets": [{"refId": "A", "expr": "ai_extra_usage_used{provider=\"claude\"}", "legendFormat": "used", "range": true}, {"refId": "B", "expr": "ai_extra_usage_limit{provider=\"claude\"}", "legendFormat": "limit", "range": true}]},
-        {"id": 13, "type": "row", "title": "API balances and provider plans", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29}},
-        {"id": 14, "type": "bargauge", "title": "OpenRouter and DeepSeek balances", "gridPos": {"h": 7, "w": 12, "x": 0, "y": 30}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "currencyUSD", "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 10}, {"color": "green", "value": 25}]}}, "overrides": []}, "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}, "targets": [{"refId": "A", "expr": "ai_credits_remaining{provider=~\"openrouter|deepseek\"}", "legendFormat": "{{provider}}", "range": true}]},
-        {"id": 15, "type": "timeseries", "title": "Balance history", "gridPos": {"h": 7, "w": 12, "x": 12, "y": 30}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {"unit": "currencyUSD"}, "overrides": []}, "targets": [{"refId": "A", "expr": "ai_credits_remaining{provider=~\"openrouter|deepseek\"}", "legendFormat": "{{provider}}", "range": true}]},
-        {"id": 16, "type": "table", "title": "Provider plans", "gridPos": {"h": 5, "w": 24, "x": 0, "y": 37}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "fieldConfig": {"defaults": {}, "overrides": []}, "options": {"showHeader": true}, "targets": [{"refId": "A", "expr": "ai_provider_plan_info", "format": "table", "instant": true, "legendFormat": "{{provider}} {{plan}}"}]}
+        {
+          "id": 10,
+          "type": "row",
+          "title": "Claude",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "collapsed": false,
+          "panels": []
+        },
+        {
+          "id": 11,
+          "type": "stat",
+          "title": "Claude status",
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 1
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_provider_up{provider=\"claude\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "ERROR",
+                      "color": "red"
+                    },
+                    "1": {
+                      "text": "OK",
+                      "color": "green"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "colorMode": "value"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        },
+        {
+          "id": 12,
+          "type": "bargauge",
+          "title": "5-hour usage",
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 4,
+            "y": 1
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_used_percent{provider=\"claude\",window=\"session\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 95
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "description": "Claude consumer subscription five-hour window."
+        },
+        {
+          "id": 13,
+          "type": "bargauge",
+          "title": "Weekly usage",
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 9,
+            "y": 1
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_used_percent{provider=\"claude\",window=\"weekly\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 95
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "description": "Claude consumer subscription seven-day window."
+        },
+        {
+          "id": 14,
+          "type": "stat",
+          "title": "Extra usage spent",
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 14,
+            "y": 1
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_extra_usage_used{provider=\"claude\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2,
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 50
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "area"
+          },
+          "description": "Claude extra usage consumed, when the subscription API reports it."
+        },
+        {
+          "id": 15,
+          "type": "stat",
+          "title": "Last Claude update",
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 19,
+            "y": 1
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "time() - ai_provider_updated_timestamp{provider=\"claude\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 600
+                  },
+                  {
+                    "color": "red",
+                    "value": 1800
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        },
+        {
+          "id": 16,
+          "type": "timeseries",
+          "title": "Claude usage history",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 5
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_used_percent{provider=\"claude\",window=~\"session|weekly\"}",
+              "legendFormat": "{{window}}",
+              "format": "time_series"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 95
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": [
+                "last"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "description": "Only the canonical session and weekly buckets are shown here; dynamic Claude buckets are below."
+        },
+        {
+          "id": 17,
+          "type": "table",
+          "title": "Claude reset times",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 5
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_reset_timestamp{provider=\"claude\",window=~\"session|weekly\"}",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "dateTimeAsIso"
+            },
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true
+          }
+        },
+        {
+          "id": 18,
+          "type": "stat",
+          "title": "Extra usage enabled",
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 0,
+            "y": 12
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_extra_usage_enabled{provider=\"claude\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "NO",
+                      "color": "gray"
+                    },
+                    "1": {
+                      "text": "YES",
+                      "color": "green"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "gray",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "colorMode": "value"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        },
+        {
+          "id": 19,
+          "type": "stat",
+          "title": "Extra usage percent",
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 5,
+            "y": 12
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_extra_usage_used_percent{provider=\"claude\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 95
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "area"
+          }
+        },
+        {
+          "id": 20,
+          "type": "table",
+          "title": "Dynamic Claude limits",
+          "gridPos": {
+            "h": 4,
+            "w": 14,
+            "x": 10,
+            "y": 12
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_used_percent{provider=\"claude\",window=~\"claude_.*\"}",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true
+          },
+          "description": "Model/surface-specific limits returned by Claude's usage endpoint."
+        },
+        {
+          "id": 30,
+          "type": "row",
+          "title": "Codex",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 17
+          },
+          "collapsed": false,
+          "panels": []
+        },
+        {
+          "id": 31,
+          "type": "stat",
+          "title": "Codex status",
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 18
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_provider_up{provider=\"codex\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "ERROR",
+                      "color": "red"
+                    },
+                    "1": {
+                      "text": "OK",
+                      "color": "green"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "colorMode": "value"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        },
+        {
+          "id": 32,
+          "type": "table",
+          "title": "Codex plan",
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 4,
+            "y": 18
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_provider_plan_info{provider=\"codex\"}",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true
+          }
+        },
+        {
+          "id": 33,
+          "type": "bargauge",
+          "title": "5-hour usage",
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 8,
+            "y": 18
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_used_percent{provider=\"codex\",window=\"session\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 95
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 34,
+          "type": "bargauge",
+          "title": "Weekly usage (when API returns it)",
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 13,
+            "y": 18
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_used_percent{provider=\"codex\",window=\"weekly\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "noValue": "Not returned by API",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 95
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "description": "The current Codex usage response may omit a weekly bucket; an empty panel here means the upstream API did not return that field, not that usage is zero."
+        },
+        {
+          "id": 35,
+          "type": "stat",
+          "title": "Codex credits",
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 18,
+            "y": 18
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_credits_remaining{provider=\"codex\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "decimals": 2
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "area"
+          },
+          "description": "Codex credits, if the ChatGPT usage API reports a credit balance."
+        },
+        {
+          "id": 36,
+          "type": "stat",
+          "title": "Last Codex update",
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 21,
+            "y": 18
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "time() - ai_provider_updated_timestamp{provider=\"codex\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 600
+                  },
+                  {
+                    "color": "red",
+                    "value": 1800
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        },
+        {
+          "id": 37,
+          "type": "timeseries",
+          "title": "Codex usage history",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 22
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_used_percent{provider=\"codex\",window=~\"session|weekly\"}",
+              "legendFormat": "{{window}}",
+              "format": "time_series"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 95
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": [
+                "last"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "id": 38,
+          "type": "table",
+          "title": "Codex reset times",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 22
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_reset_timestamp{provider=\"codex\",window=~\"session|weekly\"}",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "dateTimeAsIso"
+            },
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true
+          }
+        },
+        {
+          "id": 40,
+          "type": "row",
+          "title": "DeepSeek",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 30
+          },
+          "collapsed": false,
+          "panels": []
+        },
+        {
+          "id": 41,
+          "type": "stat",
+          "title": "DeepSeek status",
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 31
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_provider_up{provider=\"deepseek\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "ERROR",
+                      "color": "red"
+                    },
+                    "1": {
+                      "text": "OK",
+                      "color": "green"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "colorMode": "value"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        },
+        {
+          "id": 42,
+          "type": "stat",
+          "title": "DeepSeek balance",
+          "gridPos": {
+            "h": 4,
+            "w": 8,
+            "x": 4,
+            "y": 31
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_credits_remaining{provider=\"deepseek\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2,
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 10
+                  },
+                  {
+                    "color": "green",
+                    "value": 25
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "area"
+          },
+          "description": "Current USD balance from DeepSeek /user/balance."
+        },
+        {
+          "id": 43,
+          "type": "timeseries",
+          "title": "DeepSeek balance history",
+          "gridPos": {
+            "h": 4,
+            "w": 8,
+            "x": 12,
+            "y": 31
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_credits_remaining{provider=\"deepseek\"}",
+              "legendFormat": "DeepSeek",
+              "format": "time_series"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": [
+                "last"
+              ]
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "id": 44,
+          "type": "stat",
+          "title": "Last DeepSeek update",
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 20,
+            "y": 31
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "time() - ai_provider_updated_timestamp{provider=\"deepseek\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 600
+                  },
+                  {
+                    "color": "red",
+                    "value": 1800
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        },
+        {
+          "id": 45,
+          "type": "table",
+          "title": "DeepSeek fetch details",
+          "gridPos": {
+            "h": 5,
+            "w": 24,
+            "x": 0,
+            "y": 35
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_provider_up{provider=\"deepseek\"}",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "B",
+              "expr": "ai_provider_error{provider=\"deepseek\"}",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "C",
+              "expr": "ai_credits_unit{provider=\"deepseek\"}",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true
+          }
+        },
+        {
+          "id": 50,
+          "type": "row",
+          "title": "OpenRouter",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 41
+          },
+          "collapsed": false,
+          "panels": []
+        },
+        {
+          "id": 51,
+          "type": "stat",
+          "title": "OpenRouter status",
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 42
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_provider_up{provider=\"openrouter\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "ERROR",
+                      "color": "red"
+                    },
+                    "1": {
+                      "text": "OK",
+                      "color": "green"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "colorMode": "value"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        },
+        {
+          "id": 52,
+          "type": "stat",
+          "title": "OpenRouter balance",
+          "gridPos": {
+            "h": 4,
+            "w": 8,
+            "x": 4,
+            "y": 42
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_credits_remaining{provider=\"openrouter\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2,
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 10
+                  },
+                  {
+                    "color": "green",
+                    "value": 25
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "area"
+          },
+          "description": "Current USD balance from OpenRouter /api/v1/credits."
+        },
+        {
+          "id": 53,
+          "type": "timeseries",
+          "title": "OpenRouter balance history",
+          "gridPos": {
+            "h": 4,
+            "w": 8,
+            "x": 12,
+            "y": 42
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_credits_remaining{provider=\"openrouter\"}",
+              "legendFormat": "OpenRouter",
+              "format": "time_series"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": [
+                "last"
+              ]
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "id": 54,
+          "type": "stat",
+          "title": "Last OpenRouter update",
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 20,
+            "y": 42
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "time() - ai_provider_updated_timestamp{provider=\"openrouter\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 600
+                  },
+                  {
+                    "color": "red",
+                    "value": 1800
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        },
+        {
+          "id": 55,
+          "type": "table",
+          "title": "OpenRouter fetch details",
+          "gridPos": {
+            "h": 5,
+            "w": 24,
+            "x": 0,
+            "y": 46
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_provider_up{provider=\"openrouter\"}",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "B",
+              "expr": "ai_provider_error{provider=\"openrouter\"}",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "C",
+              "expr": "ai_credits_unit{provider=\"openrouter\"}",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true
+          }
+        },
+        {
+          "id": 60,
+          "type": "row",
+          "title": "Logs",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 52
+          },
+          "collapsed": false,
+          "panels": []
+        },
+        {
+          "id": 61,
+          "type": "logs",
+          "title": "AI usage collector logs",
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 53
+          },
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{namespace=\"hermes\",container=\"ai-usage-collector\"}",
+              "format": "logs",
+              "queryType": "range"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLines": true,
+            "enableLogDetails": true,
+            "prettifyLogMessage": false
+          },
+          "description": "Collector authentication, provider fetch, and error logs. Logs are intentionally kept at the bottom; metrics above are the source of truth for current values."
+        }
       ],
       "refresh": "5m",
       "schemaVersion": 39,
-      "tags": ["ai", "usage", "claude", "codex"],
-      "templating": {"list": []},
-      "time": {"from": "now-7d", "to": "now"},
+      "tags": [
+        "ai",
+        "usage",
+        "claude",
+        "codex",
+        "deepseek",
+        "openrouter"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-24h",
+        "to": "now"
+      },
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 2
+      "version": 4
     }
