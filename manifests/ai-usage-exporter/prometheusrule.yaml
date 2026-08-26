@@ -1,83 +1,9 @@
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  name: ai-usage-alerts
-  namespace: hermes
-  labels:
-    release: kube-prometheus-stack
-spec:
-  groups:
-    - name: ai-usage
-      rules:
-        - alert: AICollectorDown
-          expr: absent(ai_collector_up) or ai_collector_up == 0
-          for: 10m
-          labels:
-            severity: critical
-            app: ai-usage-exporter
-          annotations:
-            summary: "AI usage collector is down"
-            description: "The in-cluster ai-usage-collector sidecar is not exposing metrics; all AI allowance monitoring is stale."
-        - alert: AIUsageHigh
-          expr: ai_usage_used_percent >= 80
-          for: 10m
-          labels:
-            severity: warning
-            app: ai-usage-exporter
-          annotations:
-            summary: "{{ $labels.provider }} {{ $labels.window }} usage at {{ $value | humanize }}%"
-            description: "{{ $labels.provider }} {{ $labels.window }} allowance is {{ $value | humanize }}% used."
-        - alert: AIUsageCritical
-          expr: ai_usage_used_percent >= 95
-          for: 5m
-          labels:
-            severity: critical
-            app: ai-usage-exporter
-          annotations:
-            summary: "{{ $labels.provider }} {{ $labels.window }} usage at {{ $value | humanize }}%"
-            description: "{{ $labels.provider }} {{ $labels.window }} allowance is nearly exhausted."
-        - alert: AIQuotaExhausted
-          expr: ai_usage_used_percent >= 100 or ai_usage_remaining_percent <= 0
-          for: 2m
-          labels:
-            severity: critical
-            app: ai-usage-exporter
-          annotations:
-            summary: "{{ $labels.provider }} {{ $labels.window }} allowance exhausted"
-            description: "{{ $labels.provider }} {{ $labels.window }} allowance is exhausted until reset."
         - alert: AIBalanceLow
-          expr: ai_credits_remaining{provider=~"openrouter|deepseek"} < 10
+          expr: ai_credits_remaining{provider=~"openrouter|deepseek"} < 2
           for: 15m
           labels:
             severity: warning
             app: ai-usage-exporter
           annotations:
-            summary: "{{ $labels.provider }} prepaid balance below $10"
+            summary: "{{ $labels.provider }} prepaid balance below $2"
             description: "{{ $labels.provider }} has {{ $value | humanize }} credits remaining."
-        - alert: AIBalanceExhausted
-          expr: ai_credits_remaining{provider=~"openrouter|deepseek"} <= 0
-          for: 5m
-          labels:
-            severity: critical
-            app: ai-usage-exporter
-          annotations:
-            summary: "{{ $labels.provider }} prepaid balance exhausted"
-            description: "{{ $labels.provider }} has no prepaid balance remaining."
-        - alert: AIProviderFetchFailed
-          expr: ai_provider_up == 0
-          for: 30m
-          labels:
-            severity: warning
-            app: ai-usage-exporter
-          annotations:
-            summary: "{{ $labels.provider }} usage fetch failing"
-            description: "The native ai-usage-collector cannot fetch {{ $labels.provider }} usage. Check the collector log; Claude may need one-time reauthorization if Anthropic revoked the refresh session."
-        - alert: AIUsageStale
-          expr: (time() - ai_provider_updated_timestamp) > 86400 and ai_provider_up == 1
-          for: 30m
-          labels:
-            severity: warning
-            app: ai-usage-exporter
-          annotations:
-            summary: "{{ $labels.provider }} usage data is stale"
-            description: "{{ $labels.provider }} last reported over 24 hours ago."
