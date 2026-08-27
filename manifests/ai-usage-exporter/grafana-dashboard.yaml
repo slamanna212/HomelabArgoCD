@@ -493,39 +493,6 @@ data:
           }
         },
         {
-          "id": 20,
-          "type": "table",
-          "title": "Dynamic Claude limits",
-          "gridPos": {
-            "h": 4,
-            "w": 14,
-            "x": 10,
-            "y": 12
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "ai_usage_used_percent{provider=\"claude\",window=~\"claude_.*\"}",
-              "instant": true,
-              "format": "table"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent"
-            },
-            "overrides": []
-          },
-          "options": {
-            "showHeader": true
-          },
-          "description": "Model/surface-specific limits returned by Claude's usage endpoint."
-        },
-        {
           "id": 30,
           "type": "row",
           "title": "Codex",
@@ -1614,5 +1581,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 5
+      "version": 6
     }
