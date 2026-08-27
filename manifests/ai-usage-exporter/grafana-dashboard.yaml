@@ -916,10 +916,10 @@ data:
           "type": "stat",
           "title": "5-hour reset",
           "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 12,
-            "y": 19
+            "h": 4,
+            "w": 12,
+            "x": 0,
+            "y": 27
           },
           "datasource": {
             "type": "prometheus",
@@ -957,7 +957,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 28
+            "y": 31
           },
           "collapsed": false,
           "panels": []
@@ -970,7 +970,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 0,
-            "y": 29
+            "y": 32
           },
           "datasource": {
             "type": "prometheus",
@@ -1041,7 +1041,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 4,
-            "y": 29
+            "y": 32
           },
           "datasource": {
             "type": "prometheus",
@@ -1102,7 +1102,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 12,
-            "y": 29
+            "y": 32
           },
           "datasource": {
             "type": "prometheus",
@@ -1149,7 +1149,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 20,
-            "y": 29
+            "y": 32
           },
           "datasource": {
             "type": "prometheus",
@@ -1209,7 +1209,7 @@ data:
             "h": 5,
             "w": 24,
             "x": 0,
-            "y": 33
+            "y": 36
           },
           "datasource": {
             "type": "prometheus",
@@ -1251,7 +1251,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 42
           },
           "collapsed": false,
           "panels": []
@@ -1264,7 +1264,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 0,
-            "y": 40
+            "y": 43
           },
           "datasource": {
             "type": "prometheus",
@@ -1335,7 +1335,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 4,
-            "y": 40
+            "y": 43
           },
           "datasource": {
             "type": "prometheus",
@@ -1396,7 +1396,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 12,
-            "y": 40
+            "y": 43
           },
           "datasource": {
             "type": "prometheus",
@@ -1443,7 +1443,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 20,
-            "y": 40
+            "y": 43
           },
           "datasource": {
             "type": "prometheus",
@@ -1503,7 +1503,7 @@ data:
             "h": 5,
             "w": 24,
             "x": 0,
-            "y": 44
+            "y": 47
           },
           "datasource": {
             "type": "prometheus",
@@ -1545,7 +1545,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 50
+            "y": 53
           },
           "collapsed": true,
           "panels": [
@@ -1591,10 +1591,10 @@ data:
           "type": "stat",
           "title": "Weekly reset",
           "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 18,
-            "y": 19
+            "h": 4,
+            "w": 12,
+            "x": 12,
+            "y": 27
           },
           "datasource": {
             "type": "prometheus",
@@ -1645,5 +1645,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 16
+      "version": 17
     }
