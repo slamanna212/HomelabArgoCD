@@ -680,7 +680,7 @@ data:
         {
           "id": 34,
           "type": "bargauge",
-          "title": "Weekly usage (when API returns it)",
+          "title": "Weekly usage",
           "gridPos": {
             "h": 4,
             "w": 5,
@@ -1603,5 +1603,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 9
+      "version": 10
     }
