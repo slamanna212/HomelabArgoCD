@@ -193,6 +193,9 @@ data:
           ],
           "fieldConfig": {
             "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
