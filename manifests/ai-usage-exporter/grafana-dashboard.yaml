@@ -904,7 +904,7 @@ data:
         },
         {
           "id": 38,
-          "type": "table",
+          "type": "stat",
           "title": "Codex reset times",
           "gridPos": {
             "h": 7,
@@ -919,9 +919,8 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "ai_usage_reset_timestamp{provider=\"codex\",window=~\"session|weekly\"}",
-              "instant": true,
-              "format": "table"
+              "expr": "ai_usage_reset_timestamp{provider=\"codex\",window=~\"session|weekly\"} * 1000",
+              "instant": true
             }
           ],
           "fieldConfig": {
@@ -931,7 +930,14 @@ data:
             "overrides": []
           },
           "options": {
-            "showHeader": true
+            "reduceOptions": {
+              "values": false,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": ""
+            },
+            "textMode": "value"
           }
         },
         {
@@ -1591,5 +1597,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 7
+      "version": 8
     }
