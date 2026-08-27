@@ -918,7 +918,7 @@ data:
           "gridPos": {
             "h": 4,
             "w": 12,
-            "x": 0,
+            "x": 12,
             "y": 27
           },
           "datasource": {
@@ -1593,7 +1593,7 @@ data:
           "gridPos": {
             "h": 4,
             "w": 12,
-            "x": 12,
+            "x": 0,
             "y": 27
           },
           "datasource": {
@@ -1645,5 +1645,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 17
+      "version": 18
     }
