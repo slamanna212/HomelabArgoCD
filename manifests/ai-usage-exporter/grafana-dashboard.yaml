@@ -116,10 +116,10 @@ data:
           "type": "bargauge",
           "title": "5-hour usage",
           "gridPos": {
-            "h": 4,
-            "w": 5,
-            "x": 4,
-            "y": 1
+            "h": 7,
+            "w": 6,
+            "x": 12,
+            "y": 5
           },
           "datasource": {
             "type": "prometheus",
@@ -153,7 +153,10 @@ data:
               },
               "color": {
                 "mode": "thresholds"
-              }
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
             },
             "overrides": []
           },
@@ -175,10 +178,10 @@ data:
           "type": "bargauge",
           "title": "Weekly usage",
           "gridPos": {
-            "h": 4,
-            "w": 5,
-            "x": 9,
-            "y": 1
+            "h": 7,
+            "w": 6,
+            "x": 18,
+            "y": 5
           },
           "datasource": {
             "type": "prometheus",
@@ -239,7 +242,7 @@ data:
           "gridPos": {
             "h": 4,
             "w": 5,
-            "x": 14,
+            "x": 9,
             "y": 1
           },
           "datasource": {
@@ -428,8 +431,8 @@ data:
           "gridPos": {
             "h": 4,
             "w": 5,
-            "x": 0,
-            "y": 12
+            "x": 4,
+            "y": 1
           },
           "datasource": {
             "type": "prometheus",
@@ -1603,5 +1606,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 10
+      "version": 11
     }
