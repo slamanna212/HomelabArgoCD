@@ -117,9 +117,9 @@ data:
           "title": "5-hour usage",
           "gridPos": {
             "h": 4,
-            "w": 6,
-            "x": 18,
-            "y": 5
+            "w": 8,
+            "x": 16,
+            "y": 9
           },
           "datasource": {
             "type": "prometheus",
@@ -179,9 +179,9 @@ data:
           "title": "Weekly usage",
           "gridPos": {
             "h": 4,
-            "w": 6,
-            "x": 18,
-            "y": 9
+            "w": 8,
+            "x": 16,
+            "y": 5
           },
           "datasource": {
             "type": "prometheus",
@@ -362,7 +362,7 @@ data:
           "title": "Claude usage history",
           "gridPos": {
             "h": 8,
-            "w": 18,
+            "w": 16,
             "x": 0,
             "y": 5
           },
@@ -625,8 +625,8 @@ data:
           "title": "5-hour usage",
           "gridPos": {
             "h": 4,
-            "w": 12,
-            "x": 12,
+            "w": 8,
+            "x": 16,
             "y": 23
           },
           "datasource": {
@@ -686,8 +686,8 @@ data:
           "title": "Weekly usage",
           "gridPos": {
             "h": 4,
-            "w": 12,
-            "x": 12,
+            "w": 8,
+            "x": 16,
             "y": 19
           },
           "datasource": {
@@ -850,7 +850,7 @@ data:
           "title": "Codex usage history",
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 16,
             "x": 0,
             "y": 19
           },
@@ -1645,5 +1645,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 19
+      "version": 20
     }
