@@ -116,7 +116,7 @@ data:
           "type": "bargauge",
           "title": "5-hour usage",
           "gridPos": {
-            "h": 3,
+            "h": 4,
             "w": 6,
             "x": 18,
             "y": 5
@@ -181,7 +181,7 @@ data:
             "h": 4,
             "w": 6,
             "x": 18,
-            "y": 8
+            "y": 9
           },
           "datasource": {
             "type": "prometheus",
@@ -361,7 +361,7 @@ data:
           "type": "timeseries",
           "title": "Claude usage history",
           "gridPos": {
-            "h": 7,
+            "h": 8,
             "w": 18,
             "x": 0,
             "y": 5
@@ -503,7 +503,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 13
+            "y": 14
           },
           "collapsed": false,
           "panels": []
@@ -516,7 +516,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 0,
-            "y": 14
+            "y": 15
           },
           "datasource": {
             "type": "prometheus",
@@ -587,7 +587,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 4,
-            "y": 14
+            "y": 15
           },
           "datasource": {
             "type": "prometheus",
@@ -627,7 +627,7 @@ data:
             "h": 4,
             "w": 5,
             "x": 8,
-            "y": 14
+            "y": 15
           },
           "datasource": {
             "type": "prometheus",
@@ -688,7 +688,7 @@ data:
             "h": 4,
             "w": 5,
             "x": 13,
-            "y": 14
+            "y": 15
           },
           "datasource": {
             "type": "prometheus",
@@ -751,7 +751,7 @@ data:
             "h": 4,
             "w": 3,
             "x": 18,
-            "y": 14
+            "y": 15
           },
           "datasource": {
             "type": "prometheus",
@@ -792,7 +792,7 @@ data:
             "h": 4,
             "w": 3,
             "x": 21,
-            "y": 14
+            "y": 15
           },
           "datasource": {
             "type": "prometheus",
@@ -852,7 +852,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 18
+            "y": 19
           },
           "datasource": {
             "type": "prometheus",
@@ -919,7 +919,7 @@ data:
             "h": 7,
             "w": 6,
             "x": 12,
-            "y": 18
+            "y": 19
           },
           "datasource": {
             "type": "prometheus",
@@ -957,7 +957,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 26
+            "y": 27
           },
           "collapsed": false,
           "panels": []
@@ -970,7 +970,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 0,
-            "y": 27
+            "y": 28
           },
           "datasource": {
             "type": "prometheus",
@@ -1041,7 +1041,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 4,
-            "y": 27
+            "y": 28
           },
           "datasource": {
             "type": "prometheus",
@@ -1102,7 +1102,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 12,
-            "y": 27
+            "y": 28
           },
           "datasource": {
             "type": "prometheus",
@@ -1149,7 +1149,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 20,
-            "y": 27
+            "y": 28
           },
           "datasource": {
             "type": "prometheus",
@@ -1209,7 +1209,7 @@ data:
             "h": 5,
             "w": 24,
             "x": 0,
-            "y": 31
+            "y": 32
           },
           "datasource": {
             "type": "prometheus",
@@ -1251,7 +1251,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 37
+            "y": 38
           },
           "collapsed": false,
           "panels": []
@@ -1264,7 +1264,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 0,
-            "y": 38
+            "y": 39
           },
           "datasource": {
             "type": "prometheus",
@@ -1335,7 +1335,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 4,
-            "y": 38
+            "y": 39
           },
           "datasource": {
             "type": "prometheus",
@@ -1396,7 +1396,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 12,
-            "y": 38
+            "y": 39
           },
           "datasource": {
             "type": "prometheus",
@@ -1443,7 +1443,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 20,
-            "y": 38
+            "y": 39
           },
           "datasource": {
             "type": "prometheus",
@@ -1503,7 +1503,7 @@ data:
             "h": 5,
             "w": 24,
             "x": 0,
-            "y": 42
+            "y": 43
           },
           "datasource": {
             "type": "prometheus",
@@ -1545,7 +1545,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 48
+            "y": 49
           },
           "collapsed": true,
           "panels": [
@@ -1594,7 +1594,7 @@ data:
             "h": 7,
             "w": 6,
             "x": 18,
-            "y": 18
+            "y": 19
           },
           "datasource": {
             "type": "prometheus",
@@ -1645,5 +1645,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 14
+      "version": 15
     }
