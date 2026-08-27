@@ -1547,43 +1547,44 @@ data:
             "x": 0,
             "y": 52
           },
-          "collapsed": false,
-          "panels": []
-        },
-        {
-          "id": 61,
-          "type": "logs",
-          "title": "AI usage collector logs",
-          "gridPos": {
-            "h": 10,
-            "w": 24,
-            "x": 0,
-            "y": 53
-          },
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "targets": [
+          "collapsed": true,
+          "panels": [
             {
-              "refId": "A",
-              "expr": "{namespace=\"hermes\",container=\"ai-usage-collector\"}",
-              "format": "logs",
-              "queryType": "range"
+              "id": 61,
+              "type": "logs",
+              "title": "AI usage collector logs",
+              "gridPos": {
+                "h": 10,
+                "w": 24,
+                "x": 0,
+                "y": 53
+              },
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
+              "targets": [
+                {
+                  "refId": "A",
+                  "expr": "{namespace=\"hermes\",container=\"ai-usage-collector\"}",
+                  "format": "logs",
+                  "queryType": "range"
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+              },
+              "options": {
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLines": true,
+                "enableLogDetails": true,
+                "prettifyLogMessage": false
+              },
+              "description": "Collector authentication, provider fetch, and error logs. Logs are intentionally kept at the bottom; metrics above are the source of truth for current values."
             }
-          ],
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
-          },
-          "options": {
-            "showTime": true,
-            "sortOrder": "Descending",
-            "wrapLines": true,
-            "enableLogDetails": true,
-            "prettifyLogMessage": false
-          },
-          "description": "Collector authentication, provider fetch, and error logs. Logs are intentionally kept at the bottom; metrics above are the source of truth for current values."
+          ]
         },
         {
           "id": 39,
@@ -1644,5 +1645,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 12
+      "version": 13
     }
