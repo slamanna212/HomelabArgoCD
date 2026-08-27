@@ -422,38 +422,6 @@ data:
           "description": "Only the canonical session and weekly buckets are shown here; dynamic Claude buckets are below."
         },
         {
-          "id": 17,
-          "type": "table",
-          "title": "Claude reset times",
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 12,
-            "y": 5
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "ai_usage_reset_timestamp{provider=\"claude\",window=~\"session|weekly\"}",
-              "instant": true,
-              "format": "table"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "dateTimeAsIso"
-            },
-            "overrides": []
-          },
-          "options": {
-            "showHeader": true
-          }
-        },
-        {
           "id": 18,
           "type": "stat",
           "title": "Extra usage enabled",
@@ -1646,5 +1614,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 4
+      "version": 5
     }
