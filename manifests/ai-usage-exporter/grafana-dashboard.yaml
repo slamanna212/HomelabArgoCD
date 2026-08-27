@@ -525,64 +525,6 @@ data:
           }
         },
         {
-          "id": 19,
-          "type": "stat",
-          "title": "Extra usage percent",
-          "gridPos": {
-            "h": 4,
-            "w": 5,
-            "x": 5,
-            "y": 12
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "ai_extra_usage_used_percent{provider=\"claude\"}",
-              "instant": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 80
-                  },
-                  {
-                    "color": "red",
-                    "value": 95
-                  }
-                ]
-              },
-              "color": {
-                "mode": "thresholds"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "colorMode": "value",
-            "graphMode": "area"
-          }
-        },
-        {
           "id": 20,
           "type": "table",
           "title": "Dynamic Claude limits",
