@@ -578,7 +578,7 @@ data:
         },
         {
           "id": 32,
-          "type": "table",
+          "type": "stat",
           "title": "Codex plan",
           "gridPos": {
             "h": 4,
@@ -594,16 +594,26 @@ data:
             {
               "refId": "A",
               "expr": "ai_provider_plan_info{provider=\"codex\"}",
-              "instant": true,
-              "format": "table"
+              "instant": true
             }
           ],
           "fieldConfig": {
-            "defaults": {},
+            "defaults": {
+              "displayName": "${__field.labels.plan}"
+            },
             "overrides": []
           },
           "options": {
-            "showHeader": true
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "name",
+            "colorMode": "none",
+            "graphMode": "none"
           }
         },
         {
@@ -1581,5 +1591,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 6
+      "version": 7
     }
