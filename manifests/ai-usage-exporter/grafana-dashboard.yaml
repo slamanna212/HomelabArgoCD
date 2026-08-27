@@ -914,10 +914,10 @@ data:
         {
           "id": 38,
           "type": "stat",
-          "title": "Codex reset times",
+          "title": "5-hour reset",
           "gridPos": {
             "h": 7,
-            "w": 12,
+            "w": 6,
             "x": 12,
             "y": 22
           },
@@ -928,13 +928,13 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "ai_usage_reset_timestamp{provider=\"codex\",window=~\"session|weekly\"} * 1000",
+              "expr": "ai_usage_reset_timestamp{provider=\"codex\",window=\"session\"} * 1000",
               "instant": true
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "dateTimeAsIso"
+              "unit": "dateTimeAsLocal"
             },
             "overrides": []
           },
@@ -1584,6 +1584,44 @@ data:
             "prettifyLogMessage": false
           },
           "description": "Collector authentication, provider fetch, and error logs. Logs are intentionally kept at the bottom; metrics above are the source of truth for current values."
+        },
+        {
+          "id": 39,
+          "type": "stat",
+          "title": "Weekly reset",
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 18,
+            "y": 22
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "ai_usage_reset_timestamp{provider=\"codex\",window=\"weekly\"} * 1000",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "dateTimeAsLocal"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": ""
+            },
+            "textMode": "value"
+          }
         }
       ],
       "refresh": "5m",
@@ -1606,5 +1644,5 @@ data:
       "timezone": "browser",
       "title": "AI Allowance & Usage",
       "uid": "ai-usage-dashboard",
-      "version": 11
+      "version": 12
     }
