@@ -23,6 +23,11 @@ spec:
     metadata:
       labels:
         app: homelab-mcp
+      # Bump this when configmap-server.yaml changes: the pod mounts its
+      # code from the ConfigMap, and ConfigMap content changes do NOT
+      # restart pods. The annotation makes ArgoCD detect drift and roll.
+      annotations:
+        checksum/configmap: "2"
     spec:
       serviceAccountName: homelab-mcp
       containers:
