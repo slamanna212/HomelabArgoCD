@@ -34,18 +34,24 @@ data:
     node-role.kubernetes.io\") else \"worker\"),\n            \"kubelet\": n.status.node_info.kubelet_version\
     \ if n.status.node_info else None,\n        })\n\n    pods = CORE.list_pod_for_all_namespaces(limit=MAX_PODS).items\n\
     \    by_ns: dict[str, dict] = {}\n    for p in pods:\n        ns = p.metadata.namespace\n        b\
-    \ = by_ns.setdefault(ns, {\"total\": 0, \"running\": 0, \"unhealthy\": 0, \"restarts\": 0})\n    \
-    \    b[\"total\"] += 1\n        phase = p.status.phase\n        if phase == \"Running\":\n       \
-    \     b[\"running\"] += 1\n        elif phase == \"Succeeded\":\n            b.setdefault(\"completed\"\
+    \ = by_ns.setdefault(ns, {\"total\": 0, \"running\": 0, \"unhealthy\": 0, \"restarts\": 0, \"unhealthy_pods\"\
+    : []})\n        b[\"total\"] += 1\n        phase = p.status.phase\n        restarts = sum(c.restart_count\
+    \ or 0 for c in (p.status.container_statuses or []))\n        if phase == \"Running\":\n         \
+    \   b[\"running\"] += 1\n        elif phase == \"Succeeded\":\n            b.setdefault(\"completed\"\
     , 0)\n            b[\"completed\"] += 1\n        else:\n            b[\"unhealthy\"] += 1\n      \
-    \  for cs in p.status.container_statuses or []:\n            b[\"restarts\"] += cs.restart_count or\
-    \ 0\n\n    events = []\n    try:\n        evs = CORE.list_event_for_all_namespaces().items\n     \
-    \   cutoff = _now().timestamp() - 30 * 60\n        for e in evs:\n            t = e.last_timestamp\
-    \ or e.event_time\n            if t is None or t.replace(tzinfo=timezone.utc).timestamp() < cutoff:\n\
-    \                continue\n            if e.type in (\"Warning\", \"Error\"):\n                events.append({\n\
-    \                    \"ns\": e.metadata.namespace,\n                    \"kind\": e.involved_object.kind,\n\
-    \                    \"name\": e.involved_object.name,\n                    \"reason\": e.reason,\n\
-    \                    \"message\": (e.message or \"\")[:200],\n                    \"count\": e.count,\n\
+    \      if len(b[\"unhealthy_pods\"]) < 20:\n                reason = \"\"\n                if p.status.container_statuses:\n\
+    \                    st = p.status.container_statuses[0].state\n                    reason = (st.waiting.reason\
+    \ if st.waiting else None) or (st.terminated.reason if st.terminated else None) or \"\"\n        \
+    \        b[\"unhealthy_pods\"].append({\n                    \"name\": p.metadata.name,\n        \
+    \            \"phase\": phase,\n                    \"reason\": reason,\n                    \"restarts\"\
+    : restarts,\n                })\n        b[\"restarts\"] += restarts\n\n    events = []\n    try:\n\
+    \        evs = CORE.list_event_for_all_namespaces().items\n        cutoff = _now().timestamp() - 30\
+    \ * 60\n        for e in evs:\n            t = e.last_timestamp or e.event_time\n            if t\
+    \ is None or t.replace(tzinfo=timezone.utc).timestamp() < cutoff:\n                continue\n    \
+    \        if e.type in (\"Warning\", \"Error\"):\n                events.append({\n               \
+    \     \"ns\": e.metadata.namespace,\n                    \"kind\": e.involved_object.kind,\n     \
+    \               \"name\": e.involved_object.name,\n                    \"reason\": e.reason,\n   \
+    \                 \"message\": (e.message or \"\")[:200],\n                    \"count\": e.count,\n\
     \                })\n        events.sort(key=lambda x: x[\"count\"], reverse=True)\n        events\
     \ = events[:MAX_EVENTS]\n    except Exception as exc:  # noqa: BLE001\n        events = [{\"error\"\
     : str(exc)}]\n\n    return {\n        \"nodes\": node_rows,\n        \"nodes_total\": len(node_rows),\n\

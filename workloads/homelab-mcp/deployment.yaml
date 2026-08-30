@@ -27,7 +27,7 @@ spec:
       # code from the ConfigMap, and ConfigMap content changes do NOT
       # restart pods. The annotation makes ArgoCD detect drift and roll.
       annotations:
-        checksum/configmap: "2"
+        checksum/configmap: "3"
     spec:
       serviceAccountName: homelab-mcp
       containers:
