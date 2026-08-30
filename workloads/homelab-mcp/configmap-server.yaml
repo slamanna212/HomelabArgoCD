@@ -36,16 +36,15 @@ data:
     \    by_ns: dict[str, dict] = {}\n    for p in pods:\n        ns = p.metadata.namespace\n        b\
     \ = by_ns.setdefault(ns, {\"total\": 0, \"running\": 0, \"unhealthy\": 0, \"restarts\": 0})\n    \
     \    b[\"total\"] += 1\n        phase = p.status.phase\n        if phase == \"Running\":\n       \
-    \     b[\"running\"] += 1\n        elif phase == \"Succeeded\":\n            b.setdefault(\"completed\"\
-    , 0)\n            b[\"completed\"] += 1\n        else:\n            b[\"unhealthy\"] += 1\n      \
-    \  for cs in p.status.container_statuses or []:\n            b[\"restarts\"] += cs.restart_count or\
-    \ 0\n\n    events = []\n    try:\n        evs = CORE.list_event_for_all_namespaces().items\n     \
-    \   cutoff = _now().timestamp() - 30 * 60\n        for e in evs:\n            t = e.last_timestamp\
-    \ or e.event_time\n            if t is None or t.replace(tzinfo=timezone.utc).timestamp() < cutoff:\n\
-    \                continue\n            if e.type in (\"Warning\", \"Error\"):\n                events.append({\n\
-    \                    \"ns\": e.metadata.namespace,\n                    \"kind\": e.involved_object.kind,\n\
-    \                    \"name\": e.involved_object.name,\n                    \"reason\": e.reason,\n\
-    \                    \"message\": (e.message or \"\")[:200],\n                    \"count\": e.count,\n\
+    \     b[\"running\"] += 1\n        else:\n            b[\"unhealthy\"] += 1\n        for cs in p.status.container_statuses\
+    \ or []:\n            b[\"restarts\"] += cs.restart_count or 0\n\n    events = []\n    try:\n    \
+    \    evs = CORE.list_event_for_all_namespaces().items\n        cutoff = _now().timestamp() - 30 *\
+    \ 60\n        for e in evs:\n            t = e.last_timestamp or e.event_time\n            if t is\
+    \ None or t.replace(tzinfo=timezone.utc).timestamp() < cutoff:\n                continue\n       \
+    \     if e.type in (\"Warning\", \"Error\"):\n                events.append({\n                  \
+    \  \"ns\": e.metadata.namespace,\n                    \"kind\": e.involved_object.kind,\n        \
+    \            \"name\": e.involved_object.name,\n                    \"reason\": e.reason,\n      \
+    \              \"message\": (e.message or \"\")[:200],\n                    \"count\": e.count,\n\
     \                })\n        events.sort(key=lambda x: x[\"count\"], reverse=True)\n        events\
     \ = events[:MAX_EVENTS]\n    except Exception as exc:  # noqa: BLE001\n        events = [{\"error\"\
     : str(exc)}]\n\n    return {\n        \"nodes\": node_rows,\n        \"nodes_total\": len(node_rows),\n\
@@ -115,24 +114,24 @@ data:
     \ no API auth needed).\"\"\"\n    return _safe(lambda: _longhorn_volumes())\n\n\ndef _longhorn_volumes()\
     \ -> dict:\n    vols = CUSTOM.list_cluster_custom_object(\"longhorn.io\", \"v1beta2\", \"volumes\"\
     ).get(\"items\", [])\n    engines = CUSTOM.list_cluster_custom_object(\"longhorn.io\", \"v1beta2\"\
-    , \"engines\").get(\"items\", [])\n\n    eng_by_vol = {}\n    for e in engines:\n        eng_by_vol[e.get(\"\
-    spec\", {}).get(\"volumeName\") or e[\"metadata\"][\"name\"]] = {\n            \"node\": e.get(\"\
-    spec\", {}).get(\"nodeID\"),\n            \"replicas\": e.get(\"status\", {}).get(\"replicaModeMap\"\
-    , {}),\n            \"current_state\": e.get(\"status\", {}).get(\"currentState\"),\n        }\n\n\
-    \    rows = []\n    for v in vols:\n        md = v[\"metadata\"]\n        st = v.get(\"status\", {})\n\
-    \        rows.append({\n            \"name\": md[\"name\"],\n            \"namespace\": md.get(\"\
-    namespace\", \"longhorn-system\"),\n            \"size\": st.get(\"size\") or v.get(\"spec\", {}).get(\"\
-    size\"),\n            \"state\": st.get(\"state\"),\n            \"robustness\": st.get(\"robustness\"\
-    ),\n            \"node\": st.get(\"currentNodeID\"),\n            \"replica_count\": len(eng_by_vol.get(md[\"\
-    name\"], {}).get(\"replicas\", {})),\n            \"replicas\": eng_by_vol.get(md[\"name\"], {}).get(\"\
-    replicas\", {}),\n            \"engine_state\": eng_by_vol.get(md[\"name\"], {}).get(\"current_state\"\
-    ),\n            \"engine_node\": eng_by_vol.get(md[\"name\"], {}).get(\"node\"),\n        })\n   \
-    \ rows.sort(key=lambda r: (r[\"robustness\"] != \"healthy\", r[\"name\"]))\n    return {\n       \
-    \ \"volumes\": rows,\n        \"total\": len(rows),\n        \"not_healthy\": [r[\"name\"] for r in\
-    \ rows if r[\"robustness\"] != \"healthy\"],\n    }\n\n\n@mcp.tool()\ndef get_pvc_status(namespace:\
-    \ Optional[str] = None) -> dict:\n    \"\"\"PVCs: phase, requested capacity, bound PV. Optionally\
-    \ filter by namespace.\"\"\"\n    return _safe(lambda: _pvc_status(namespace))\n\n\ndef _pvc_status(namespace:\
-    \ Optional[str]) -> dict:\n    if namespace:\n        pvcs = CORE.list_namespaced_persistent_volume_claim(namespace).items\n\
+    , \"engines\").get(\"items\", [])\n\n    eng_by_vol = {}\n    for e in engines:\n        eng_by_vol[e[\"\
+    metadata\"][\"name\"]] = {\n            \"node\": e.get(\"spec\", {}).get(\"nodeID\"),\n         \
+    \   \"replicas\": e.get(\"status\", {}).get(\"replicaModeMap\", {}),\n            \"current_state\"\
+    : e.get(\"status\", {}).get(\"currentState\"),\n        }\n\n    rows = []\n    for v in vols:\n \
+    \       md = v[\"metadata\"]\n        st = v.get(\"status\", {})\n        rows.append({\n        \
+    \    \"name\": md[\"name\"],\n            \"namespace\": md.get(\"namespace\", \"longhorn-system\"\
+    ),\n            \"size\": st.get(\"size\") or v.get(\"spec\", {}).get(\"size\"),\n            \"state\"\
+    : st.get(\"state\"),\n            \"robustness\": st.get(\"robustness\"),\n            \"node\": st.get(\"\
+    currentNodeID\"),\n            \"replica_count\": len(eng_by_vol.get(md[\"name\"], {}).get(\"replicas\"\
+    , {})),\n            \"replicas\": eng_by_vol.get(md[\"name\"], {}).get(\"replicas\", {}),\n     \
+    \       \"engine_state\": eng_by_vol.get(md[\"name\"], {}).get(\"current_state\"),\n            \"\
+    engine_node\": eng_by_vol.get(md[\"name\"], {}).get(\"node\"),\n        })\n    rows.sort(key=lambda\
+    \ r: (r[\"robustness\"] != \"healthy\", r[\"name\"]))\n    return {\n        \"volumes\": rows,\n\
+    \        \"total\": len(rows),\n        \"not_healthy\": [r[\"name\"] for r in rows if r[\"robustness\"\
+    ] != \"healthy\"],\n    }\n\n\n@mcp.tool()\ndef get_pvc_status(namespace: Optional[str] = None) ->\
+    \ dict:\n    \"\"\"PVCs: phase, requested capacity, bound PV. Optionally filter by namespace.\"\"\"\
+    \n    return _safe(lambda: _pvc_status(namespace))\n\n\ndef _pvc_status(namespace: Optional[str])\
+    \ -> dict:\n    if namespace:\n        pvcs = CORE.list_namespaced_persistent_volume_claim(namespace).items\n\
     \    else:\n        pvcs = CORE.list_persistent_volume_claim_for_all_namespaces().items\n    rows\
     \ = []\n    for p in pvcs:\n        rows.append({\n            \"name\": p.metadata.name,\n      \
     \      \"namespace\": p.metadata.namespace,\n            \"phase\": p.status.phase,\n            \"\
