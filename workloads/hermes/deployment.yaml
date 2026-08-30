@@ -186,6 +186,32 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: api-server-key
+            # Hermes Mobile Companion / Conduit talk to the official dashboard on
+            # 9119 - same MetalLB IP as the WebUI, one port over. The official image
+            # ships an s6 dashboard slot that activates on HERMES_DASHBOARD and fails
+            # closed without an auth provider (--insecure is a no-op since the June
+            # 2026 hardening).
+            - name: HERMES_DASHBOARD
+              value: "1"
+            - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: dashboard-auth-username
+            - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: dashboard-auth-password
+            - name: HERMES_DASHBOARD_BASIC_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: dashboard-auth-secret
+          ports:
+            - name: dashboard
+              containerPort: 9119
+              protocol: TCP
           volumeMounts:
             - name: data
               mountPath: /home/hermes/.hermes
