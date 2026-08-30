@@ -11,7 +11,7 @@ spec:
     # OpenViking's official Helm chart lives in its source repo (not a chart
     # repo/URL), so this is a git-path Helm source — same pattern as firecrawl.
     - repoURL: https://github.com/volcengine/OpenViking.git
-      targetRevision: v0.4.13
+      targetRevision: v0.4.17
       path: deploy/helm/openviking
       helm:
         valueFiles:
