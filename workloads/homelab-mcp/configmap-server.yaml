@@ -1,0 +1,162 @@
+# Server code + deps for the homelab-mcp pod (ConfigMap-mounted, no registry image yet).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homelab-mcp-server
+  namespace: homelab-mcp
+  labels:
+    app: homelab-mcp
+data:
+  server.py: "#!/usr/bin/env python3\n\"\"\"homelab-mcp \u2014 read-only homelab status MCP server for\
+    \ Hermes.\n\nTalks to, all in-cluster, all read-only:\n  - Kubernetes API (in-cluster service account,\
+    \ no kubeconfig)\n  - metrics-server (node CPU/mem usage)\n  - ArgoCD Application CRs (sync/health\
+    \ status)\n  - Longhorn Volume/Engine CRDs (replica health)\n  - Prometheus (firing alerts, internal\
+    \ service in monitoring ns)\n\nBy construction there are no write verbs, no shell, no secret values,\n\
+    no generic run_command. Every tool returns JSON-serializable dicts and\ncaps result sizes so prompts\
+    \ stay lean.\n\nTransport: FastMCP streamable HTTP on 0.0.0.0:8000, path /mcp.\n\"\"\"\nfrom __future__\
+    \ import annotations\n\nimport json\nimport os\nfrom datetime import datetime, timezone\nfrom typing\
+    \ import Optional\n\nimport requests\nfrom fastmcp import FastMCP\nfrom kubernetes import client,\
+    \ config\n\nmcp = FastMCP(\"homelab\")\n\ntry:\n    config.load_incluster_config()\nexcept Exception\
+    \ as exc:  # pragma: no cover - local dev fallback\n    print(f\"warning: no in-cluster config ({exc});\
+    \ trying kubeconfig\", flush=True)\n    try:\n        config.load_kube_config()\n    except Exception:\n\
+    \        pass\n\nCORE = client.CoreV1Api()\nAPPS = client.AppsV1Api()\nCUSTOM = client.CustomObjectsApi()\n\
+    \nPROMETHEUS = os.environ.get(\"PROMETHEUS_URL\", \"http://prometheus-operated.monitoring.svc:9090\"\
+    )\nMAX_EVENTS = 30\nMAX_ALERTS = 50\nMAX_PODS = 500\n\n\ndef _now() -> datetime:\n    return datetime.now(timezone.utc)\n\
+    \n\ndef _safe(fn):\n    \"\"\"Wrap a tool body so a single failing subsystem never kills the server.\"\
+    \"\"\n    try:\n        return fn()\n    except Exception as exc:  # noqa: BLE001\n        return\
+    \ {\"error\": f\"{type(exc).__name__}: {exc}\"}\n\n\n@mcp.tool()\ndef get_cluster_overview() -> dict:\n\
+    \    \"\"\"Cluster-wide status: node readiness, pod health rollup by namespace, recent warning events.\"\
+    \"\"\n    return _safe(lambda: _cluster_overview())\n\n\ndef _cluster_overview() -> dict:\n    nodes\
+    \ = CORE.list_node().items\n    node_rows = []\n    for n in nodes:\n        ready = any(c.type ==\
+    \ \"Ready\" and c.status == \"True\" for c in n.status.conditions or [])\n        node_rows.append({\n\
+    \            \"name\": n.metadata.name,\n            \"ready\": ready,\n            \"roles\": \"\
+    ,\".join(n.metadata.labels.get(\"node-role.kubernetes.io\", \"worker\") if n.metadata.labels.get(\"\
+    node-role.kubernetes.io\") else \"worker\"),\n            \"kubelet\": n.status.node_info.kubelet_version\
+    \ if n.status.node_info else None,\n        })\n\n    pods = CORE.list_pod_for_all_namespaces(limit=MAX_PODS).items\n\
+    \    by_ns: dict[str, dict] = {}\n    for p in pods:\n        ns = p.metadata.namespace\n        b\
+    \ = by_ns.setdefault(ns, {\"total\": 0, \"running\": 0, \"unhealthy\": 0, \"restarts\": 0})\n    \
+    \    b[\"total\"] += 1\n        phase = p.status.phase\n        if phase == \"Running\":\n       \
+    \     b[\"running\"] += 1\n        else:\n            b[\"unhealthy\"] += 1\n        for cs in p.status.container_statuses\
+    \ or []:\n            b[\"restarts\"] += cs.restart_count or 0\n\n    events = []\n    try:\n    \
+    \    evs = CORE.list_event_for_all_namespaces().items\n        cutoff = _now().timestamp() - 30 *\
+    \ 60\n        for e in evs:\n            t = e.last_timestamp or e.event_time\n            if t is\
+    \ None or t.replace(tzinfo=timezone.utc).timestamp() < cutoff:\n                continue\n       \
+    \     if e.type in (\"Warning\", \"Error\"):\n                events.append({\n                  \
+    \  \"ns\": e.metadata.namespace,\n                    \"kind\": e.involved_object.kind,\n        \
+    \            \"name\": e.involved_object.name,\n                    \"reason\": e.reason,\n      \
+    \              \"message\": (e.message or \"\")[:200],\n                    \"count\": e.count,\n\
+    \                })\n        events.sort(key=lambda x: x[\"count\"], reverse=True)\n        events\
+    \ = events[:MAX_EVENTS]\n    except Exception as exc:  # noqa: BLE001\n        events = [{\"error\"\
+    : str(exc)}]\n\n    return {\n        \"nodes\": node_rows,\n        \"nodes_total\": len(node_rows),\n\
+    \        \"nodes_not_ready\": sum(1 for n in node_rows if not n[\"ready\"]),\n        \"pods_by_namespace\"\
+    : by_ns,\n        \"pods_total\": len(pods),\n        \"pods_unhealthy\": sum(b[\"unhealthy\"] for\
+    \ b in by_ns.values()),\n        \"recent_warning_events\": events,\n        \"generated_at\": _now().isoformat(),\n\
+    \    }\n\n\n@mcp.tool()\ndef get_workload_status(namespace: str, name: str) -> dict:\n    \"\"\"Status\
+    \ of one workload (deployment/statefulset/daemonset) by namespace+name: conditions, restarts, recent\
+    \ events.\"\"\"\n    return _safe(lambda: _workload_status(namespace, name))\n\n\ndef _workload_status(namespace:\
+    \ str, name: str) -> dict:\n    out: dict = {\"namespace\": namespace, \"name\": name}\n    found\
+    \ = False\n\n    try:\n        d = APPS.read_namespaced_deployment(name, namespace)\n        found\
+    \ = True\n        out[\"kind\"] = \"Deployment\"\n        out[\"desired\"] = d.spec.replicas\n   \
+    \     out[\"ready\"] = d.status.ready_replicas or 0\n        out[\"available\"] = d.status.available_replicas\
+    \ or 0\n        out[\"conditions\"] = [{\"type\": c.type, \"status\": c.status, \"reason\": c.reason}\
+    \ for c in (d.status.conditions or [])]\n        out[\"restarts\"] = _restarts(namespace, d.spec.selector.match_labels)\n\
+    \    except client.exceptions.ApiException as exc:\n        if exc.status == 404:\n            pass\n\
+    \        else:\n            raise\n\n    try:\n        s = APPS.read_namespaced_stateful_set(name,\
+    \ namespace)\n        found = True\n        out[\"kind\"] = \"StatefulSet\"\n        out[\"desired\"\
+    ] = s.spec.replicas\n        out[\"ready\"] = s.status.ready_replicas or 0\n        out[\"current\"\
+    ] = s.status.current_replicas or 0\n        out[\"conditions\"] = [{\"type\": c.type, \"status\":\
+    \ c.status, \"reason\": c.reason} for c in (s.status.conditions or [])]\n        out[\"restarts\"\
+    ] = _restarts(namespace, s.spec.selector.match_labels)\n    except client.exceptions.ApiException\
+    \ as exc:\n        if exc.status == 404:\n            pass\n        else:\n            raise\n\n \
+    \   try:\n        d = APPS.read_namespaced_daemon_set(name, namespace)\n        found = True\n   \
+    \     out[\"kind\"] = \"DaemonSet\"\n        out[\"desired\"] = d.status.desired_number_scheduled\n\
+    \        out[\"ready\"] = d.status.number_ready or 0\n        out[\"available\"] = d.status.number_available\
+    \ or 0\n        out[\"conditions\"] = [{\"type\": c.type, \"status\": c.status, \"reason\": c.reason}\
+    \ for c in (d.status.conditions or [])]\n        out[\"restarts\"] = _restarts(namespace, d.spec.selector.match_labels)\n\
+    \    except client.exceptions.ApiException as exc:\n        if exc.status == 404:\n            pass\n\
+    \        else:\n            raise\n\n    if not found:\n        return {\"error\": f\"no deployment/statefulset/daemonset\
+    \ named {name!r} in namespace {namespace!r}\"}\n\n    out[\"recent_events\"] = _events_for(namespace,\
+    \ name)[:15]\n    return out\n\n\ndef _restarts(namespace: str, labels: dict | None) -> int:\n   \
+    \ if not labels:\n        return 0\n    sel = \",\".join(f\"{k}={v}\" for k, v in labels.items())\n\
+    \    pods = CORE.list_namespaced_pod(namespace, label_selector=sel).items\n    return sum(c.restart_count\
+    \ or 0 for p in pods for c in (p.status.container_statuses or []))\n\n\ndef _events_for(namespace:\
+    \ str, name: str) -> list:\n    try:\n        evs = CORE.list_namespaced_event(namespace).items\n\
+    \        rows = []\n        for e in evs:\n            if e.involved_object.name != name:\n      \
+    \          continue\n            rows.append({\n                \"type\": e.type,\n              \
+    \  \"reason\": e.reason,\n                \"message\": (e.message or \"\")[:200],\n              \
+    \  \"count\": e.count,\n                \"last\": (e.last_timestamp or \"\").isoformat() if e.last_timestamp\
+    \ else None,\n            })\n        rows.sort(key=lambda r: r[\"count\"], reverse=True)\n      \
+    \  return rows[:15]\n    except Exception as exc:  # noqa: BLE001\n        return [{\"error\": str(exc)}]\n\
+    \n\n@mcp.tool()\ndef get_node_usage() -> dict:\n    \"\"\"Per-node CPU/memory usage from metrics-server\
+    \ (core usage, no pod breakdown).\"\"\"\n    return _safe(lambda: _node_usage())\n\n\ndef _node_usage()\
+    \ -> dict:\n    try:\n        rows = CUSTOM.list_cluster_custom_object(\"metrics.k8s.io\", \"v1beta1\"\
+    , \"nodes\").get(\"items\", [])\n    except client.exceptions.ApiException as exc:\n        # metrics\
+    \ API missing/forbidden\n        return {\"error\": f\"metrics.k8s.io unavailable: {exc.status} {exc.reason}\
+    \ \u2014 is metrics-server healthy?\"}\n\n    out = []\n    for r in rows:\n        usage = r.get(\"\
+    usage\", {})\n        cpu = usage.get(\"cpu\", \"0\")\n        mem = usage.get(\"memory\", \"0\")\n\
+    \        out.append({\n            \"node\": r[\"metadata\"][\"name\"],\n            \"cpu\": cpu,\n\
+    \            \"memory\": mem,\n            \"ts\": r.get(\"timestamp\"),\n        })\n    out.sort(key=lambda\
+    \ x: x[\"node\"])\n    return {\"nodes\": out, \"count\": len(out)}\n\n\n@mcp.tool()\ndef get_argocd_apps()\
+    \ -> dict:\n    \"\"\"All ArgoCD Applications: sync status, health, revision, and whether the app\
+    \ is out of sync.\"\"\"\n    return _safe(lambda: _argocd_apps())\n\n\ndef _argocd_apps() -> dict:\n\
+    \    apps = CUSTOM.list_cluster_custom_object(\"argoproj.io\", \"v1alpha1\", \"applications\").get(\"\
+    items\", [])\n    rows = []\n    for a in apps:\n        st = a.get(\"status\", {})\n        sync\
+    \ = st.get(\"sync\", {}).get(\"status\", \"Unknown\")\n        health = st.get(\"health\", {}).get(\"\
+    status\", \"Unknown\")\n        rows.append({\n            \"name\": a[\"metadata\"][\"name\"],\n\
+    \            \"namespace\": a[\"metadata\"].get(\"namespace\", \"argocd\"),\n            \"sync\"\
+    : sync,\n            \"health\": health,\n            \"revision\": (st.get(\"sync\", {}).get(\"revision\"\
+    ) or \"\")[:12],\n            \"destination\": a.get(\"spec\", {}).get(\"destination\", {}).get(\"\
+    namespace\", \"\"),\n        })\n    rows.sort(key=lambda r: (r[\"sync\"] != \"Synced\", r[\"health\"\
+    ] != \"Healthy\", r[\"name\"]))\n    return {\n        \"apps\": rows,\n        \"total\": len(rows),\n\
+    \        \"out_of_sync\": [r[\"name\"] for r in rows if r[\"sync\"] != \"Synced\"],\n        \"unhealthy\"\
+    : [r[\"name\"] for r in rows if r[\"health\"] not in (\"Healthy\", \"Unknown\")],\n    }\n\n\n@mcp.tool()\n\
+    def get_longhorn_volumes() -> dict:\n    \"\"\"Longhorn volumes + engine replica state (CRD read,\
+    \ no API auth needed).\"\"\"\n    return _safe(lambda: _longhorn_volumes())\n\n\ndef _longhorn_volumes()\
+    \ -> dict:\n    vols = CUSTOM.list_cluster_custom_object(\"longhorn.io\", \"v1beta2\", \"volumes\"\
+    ).get(\"items\", [])\n    engines = CUSTOM.list_cluster_custom_object(\"longhorn.io\", \"v1beta2\"\
+    , \"engines\").get(\"items\", [])\n\n    eng_by_vol = {}\n    for e in engines:\n        eng_by_vol[e[\"\
+    metadata\"][\"name\"]] = {\n            \"node\": e.get(\"spec\", {}).get(\"nodeID\"),\n         \
+    \   \"replicas\": e.get(\"status\", {}).get(\"replicaModeMap\", {}),\n            \"current_state\"\
+    : e.get(\"status\", {}).get(\"currentState\"),\n        }\n\n    rows = []\n    for v in vols:\n \
+    \       md = v[\"metadata\"]\n        st = v.get(\"status\", {})\n        rows.append({\n        \
+    \    \"name\": md[\"name\"],\n            \"namespace\": md.get(\"namespace\", \"longhorn-system\"\
+    ),\n            \"size\": st.get(\"size\") or v.get(\"spec\", {}).get(\"size\"),\n            \"state\"\
+    : st.get(\"state\"),\n            \"robustness\": st.get(\"robustness\"),\n            \"node\": st.get(\"\
+    currentNodeID\"),\n            \"replica_count\": len(eng_by_vol.get(md[\"name\"], {}).get(\"replicas\"\
+    , {})),\n            \"replicas\": eng_by_vol.get(md[\"name\"], {}).get(\"replicas\", {}),\n     \
+    \       \"engine_state\": eng_by_vol.get(md[\"name\"], {}).get(\"current_state\"),\n            \"\
+    engine_node\": eng_by_vol.get(md[\"name\"], {}).get(\"node\"),\n        })\n    rows.sort(key=lambda\
+    \ r: (r[\"robustness\"] != \"healthy\", r[\"name\"]))\n    return {\n        \"volumes\": rows,\n\
+    \        \"total\": len(rows),\n        \"not_healthy\": [r[\"name\"] for r in rows if r[\"robustness\"\
+    ] != \"healthy\"],\n    }\n\n\n@mcp.tool()\ndef get_pvc_status(namespace: Optional[str] = None) ->\
+    \ dict:\n    \"\"\"PVCs: phase, requested capacity, bound PV. Optionally filter by namespace.\"\"\"\
+    \n    return _safe(lambda: _pvc_status(namespace))\n\n\ndef _pvc_status(namespace: Optional[str])\
+    \ -> dict:\n    if namespace:\n        pvcs = CORE.list_namespaced_persistent_volume_claim(namespace).items\n\
+    \    else:\n        pvcs = CORE.list_persistent_volume_claim_for_all_namespaces().items\n    rows\
+    \ = []\n    for p in pvcs:\n        rows.append({\n            \"name\": p.metadata.name,\n      \
+    \      \"namespace\": p.metadata.namespace,\n            \"phase\": p.status.phase,\n            \"\
+    capacity\": p.status.capacity.get(\"storage\") if p.status.capacity else None,\n            \"requested\"\
+    : p.spec.resources.requests.get(\"storage\") if p.spec.resources and p.spec.resources.requests else\
+    \ None,\n            \"storage_class\": p.spec.storage_class_name,\n            \"volume\": p.spec.volume_name,\n\
+    \        })\n    rows.sort(key=lambda r: (r[\"phase\"] != \"Bound\", r[\"namespace\"], r[\"name\"\
+    ]))\n    return {\"pvcs\": rows, \"total\": len(rows), \"not_bound\": [r[\"name\"] for r in rows if\
+    \ r[\"phase\"] != \"Bound\"]}\n\n\n@mcp.tool()\ndef get_active_alerts() -> dict:\n    \"\"\"Firing\
+    \ Prometheus alerts (internal prometheus-operated service, monitoring ns).\"\"\"\n    return _safe(lambda:\
+    \ _active_alerts())\n\n\ndef _active_alerts() -> dict:\n    try:\n        resp = requests.get(f\"\
+    {PROMETHEUS}/api/v1/alerts\", timeout=5)\n        resp.raise_for_status()\n        alerts = resp.json().get(\"\
+    data\", {}).get(\"alerts\", [])\n    except Exception as exc:  # noqa: BLE001\n        return {\"\
+    error\": f\"prometheus unreachable at {PROMETHEUS}: {exc}\"}\n\n    firing = [a for a in alerts if\
+    \ a.get(\"state\") == \"firing\"]\n    firing.sort(key=lambda a: a.get(\"startsAt\", \"\"))\n    rows\
+    \ = []\n    for a in firing[:MAX_ALERTS]:\n        labels = a.get(\"labels\", {})\n        rows.append({\n\
+    \            \"name\": labels.get(\"alertname\"),\n            \"severity\": labels.get(\"severity\"\
+    , \"none\"),\n            \"namespace\": labels.get(\"namespace\"),\n            \"summary\": (a.get(\"\
+    annotations\", {}).get(\"summary\") or \"\")[:200],\n            \"startsAt\": a.get(\"startsAt\"\
+    ),\n        })\n    return {\"firing\": rows, \"count\": len(rows), \"total_firing\": len(firing)}\n\
+    \n\nif __name__ == \"__main__\":\n    mcp.run(transport=\"streamable-http\", host=\"0.0.0.0\", port=8000)\n"
+  requirements.txt: 'fastmcp>=2.0
+
+    kubernetes>=30.0
+
+    requests>=2.31
+
+    '

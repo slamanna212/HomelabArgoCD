@@ -1,0 +1,24 @@
+# Read-only ClusterRole for the homelab-mcp server.
+# get/list/watch ONLY — no write verbs, no secrets access, no exec.
+# The server never touches write endpoints; this role is the enforcement
+# boundary so even a compromised server cannot mutate the cluster.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: homelab-mcp-readonly
+rules:
+  - apiGroups: [""]
+    resources: [namespaces, nodes, pods, persistentvolumeclaims, persistentvolumes, events]
+    verbs: [get, list, watch]
+  - apiGroups: ["apps"]
+    resources: [deployments, statefulsets, daemonsets, replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: [nodes, pods]
+    verbs: [get, list]
+  - apiGroups: ["argoproj.io"]
+    resources: [applications]
+    verbs: [get, list, watch]
+  - apiGroups: ["longhorn.io"]
+    resources: [volumes, engines, replicas]
+    verbs: [get, list, watch]

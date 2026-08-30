@@ -1,0 +1,62 @@
+# homelab-mcp — read-only homelab status MCP server for Hermes.
+#
+# No registry image yet (no in-cluster registry): the server code ships as a
+# ConfigMap and runs on python:3.12-slim with pip install at startup. Swap to
+# a real image (GHCR) once there's a pipeline for it.
+#
+# Auth: none — ClusterIP-only service in its own namespace, same trust model
+# as OpenViking (internal services whose only consumer is Hermes). The RBAC
+# role is the actual security boundary: read-only, no secrets.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homelab-mcp
+  namespace: homelab-mcp
+  labels:
+    app: homelab-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homelab-mcp
+  template:
+    metadata:
+      labels:
+        app: homelab-mcp
+    spec:
+      serviceAccountName: homelab-mcp
+      containers:
+        - name: mcp
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - pip install --no-cache-dir -q -r /code/requirements.txt && exec python /code/server.py
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: PROMETHEUS_URL
+              value: "http://prometheus-operated.monitoring.svc:9090"
+          volumeMounts:
+            - name: code
+              mountPath: /code
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /mcp
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+      volumes:
+        - name: code
+          configMap:
+            name: homelab-mcp-server
