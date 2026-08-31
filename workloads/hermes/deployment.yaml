@@ -248,7 +248,7 @@ spec:
           # The container then exits 1 in a crash loop. `uv pip install -e` first
           # appears in exp-v0.52.159, so no stable release currently works in a
           # two-container setup. Revisit once a stable release carries the fix.
-          image: ghcr.io/nesquena/hermes-webui:0.52.201
+          image: ghcr.io/nesquena/hermes-webui:0.52.264
           env:
             - name: HERMES_WEBUI_HOST
               value: "0.0.0.0"
