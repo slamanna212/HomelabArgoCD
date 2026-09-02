@@ -89,14 +89,16 @@ spec:
               value: "15s"
             - name: HEALTH_SERVER_ADDRESS
               value: "0.0.0.0:9999"
-            # Do NOT re-enable without reading the note in CLAUDE.md. gluetun's health
-            # checks (TCP+TLS dial every 5m, ICMP ping every 1m) time out when live
-            # streaming saturates the tunnel, and the "cure" is to tear the tunnel down —
-            # which kills every in-flight provider connection and causes the buffering it
-            # was reacting to. Checks still run and still log with this off; only the
-            # destructive restart is disabled.
+            # Re-enabled 2026-09-01. The original off rationale (checks starve under load,
+            # restarts cause buffering) was retired the next day by d70375f: tcpdump showed
+            # the tunnel genuinely blackholed, restarts were a response, not the cause. The
+            # UniFi-specific triggers (nf_flowtable offload, wgclt1 collision) are gone with
+            # the router (OPNsense since 08-19), and on 2026-09-01 an OPNsense reboot killed
+            # the flow with no self-heal for 2h10m until manual pod recycle. On: a dead
+            # tunnel re-establishes on a new source port after the check window. See
+            # CLAUDE.md for the full history.
             - name: HEALTH_RESTART_VPN
-              value: "off"
+              value: "on"
             # Leave DNS to CoreDNS. gluetun defaults to DOT=on and rewrites
             # /etc/resolv.conf to its own DoT proxy on 127.0.0.1:53, which resolves via
             # Cloudflare *through the tunnel*. kubelet bind-mounts ONE resolv.conf into
