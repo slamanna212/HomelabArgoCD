@@ -3,17 +3,27 @@
   "extends": [
     "config:recommended"
   ],
-  "baseBranchPatterns": ["main"],
-  "labels": ["dependencies"],
+  "baseBranchPatterns": [
+    "main"
+  ],
+  "labels": [
+    "dependencies"
+  ],
   "argocd": {
-    "managerFilePatterns": ["/^apps/.+\\.yaml$/"]
+    "managerFilePatterns": [
+      "/^apps/.+\\.yaml$/"
+    ]
   },
   "customManagers": [
     {
       "customType": "regex",
       "description": "Track dispatcharr image tag in workload manifests",
-      "managerFilePatterns": ["/^workloads/.+\\.yaml$/"],
-      "matchStrings": ["image: ghcr\\.io/dispatcharr/dispatcharr:(?<currentValue>[^\\s]+)"],
+      "managerFilePatterns": [
+        "/^workloads/.+\\.yaml$/"
+      ],
+      "matchStrings": [
+        "image: ghcr\\.io/dispatcharr/dispatcharr:(?<currentValue>[^\\s]+)"
+      ],
       "depNameTemplate": "dispatcharr/dispatcharr",
       "registryUrlTemplate": "https://ghcr.io",
       "datasourceTemplate": "docker",
@@ -22,10 +32,12 @@
     {
       "customType": "regex",
       "description": "Track Hermes agent + WebUI image tags in workload manifests",
-      "managerFilePatterns": ["/^workloads/.+\\.yaml$/"],
+      "managerFilePatterns": [
+        "/^workloads/.+\\.yaml$/"
+      ],
       "matchStrings": [
-        "image: (?<depName>nousresearch/hermes-agent):(?<currentValue>[^\\s]+)",
-        "image: (?<depName>ghcr\\.io/nesquena/hermes-webui):(?<currentValue>[^\\s]+)"
+        "image: (?<depName>nousresearch/hermes-agent):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?",
+        "image: (?<depName>ghcr\\.io/nesquena/hermes-webui):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?"
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"
@@ -33,7 +45,9 @@
     {
       "customType": "regex",
       "description": "Track Plex monitoring exporter image tags in workload manifests",
-      "managerFilePatterns": ["/^workloads/.+\\.yaml$/"],
+      "managerFilePatterns": [
+        "/^workloads/.+\\.yaml$/"
+      ],
       "matchStrings": [
         "image: (?<depName>ghcr\\.io/onedr0p/exportarr):(?<currentValue>[^\\s]+)",
         "image: (?<depName>ghcr\\.io/willfantom/overseerr-exporter):(?<currentValue>[^\\s]+)",
@@ -45,8 +59,12 @@
     {
       "customType": "regex",
       "description": "Track Firecrawl image tag in helm values (kept in sync with the chart targetRevision in apps/firecrawl.yaml)",
-      "managerFilePatterns": ["/^values\\/firecrawl\\.yaml$/"],
-      "matchStrings": ["repository: ghcr\\.io/firecrawl/firecrawl\\n\\s*tag: \\\"(?<currentValue>[^\\s\\\"]+)\\\""],
+      "managerFilePatterns": [
+        "/^values\\/firecrawl\\.yaml$/"
+      ],
+      "matchStrings": [
+        "repository: ghcr\\.io/firecrawl/firecrawl\\n\\s*tag: \\\"(?<currentValue>[^\\s\\\"]+)\\\""
+      ],
       "depNameTemplate": "firecrawl/firecrawl",
       "registryUrlTemplate": "https://ghcr.io",
       "datasourceTemplate": "docker",
@@ -56,31 +74,49 @@
   "packageRules": [
     {
       "description": "Only track stable semver releases for dispatcharr, and prioritize it so it isn't perpetually rate-limited out by the backlog of other pending PRs",
-      "matchPackageNames": ["dispatcharr/dispatcharr"],
+      "matchPackageNames": [
+        "dispatcharr/dispatcharr"
+      ],
       "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/",
       "ignoreUnstable": true,
       "prPriority": 5
     },
     {
       "description": "Group all monitoring stack updates together",
-      "matchPackageNames": ["kube-prometheus-stack", "loki", "promtail"],
+      "matchPackageNames": [
+        "kube-prometheus-stack",
+        "loki",
+        "promtail"
+      ],
       "groupName": "monitoring stack"
     },
     {
       "description": "Group all GitHub Actions runner updates together",
-      "matchPackageNames": ["gha-runner-scale-set", "gha-runner-scale-set-controller"],
+      "matchPackageNames": [
+        "gha-runner-scale-set",
+        "gha-runner-scale-set-controller"
+      ],
       "groupName": "arc runners"
     },
     {
       "description": "Group the Hermes images. hermes-webui ships hundreds of patch releases (already past 0.51.680), so batch them weekly instead of taking a PR per release. hermes-agent uses calendar tags (vYYYY.M.D); the allowedVersions guard keeps Renovate off its floating :latest and :main tags.",
-      "matchPackageNames": ["nousresearch/hermes-agent", "ghcr.io/nesquena/hermes-webui"],
+      "matchPackageNames": [
+        "nousresearch/hermes-agent",
+        "ghcr.io/nesquena/hermes-webui"
+      ],
       "groupName": "hermes agent",
       "allowedVersions": "/^v?\\d+\\.\\d+\\.\\d+$/",
-      "schedule": ["before 4am on monday"]
+      "schedule": [
+        "before 4am on monday"
+      ]
     },
     {
       "description": "Group the Plex monitoring exporter images together",
-      "matchPackageNames": ["ghcr.io/onedr0p/exportarr", "ghcr.io/willfantom/overseerr-exporter", "python"],
+      "matchPackageNames": [
+        "ghcr.io/onedr0p/exportarr",
+        "ghcr.io/willfantom/overseerr-exporter",
+        "python"
+      ],
       "groupName": "plex monitoring exporters"
     }
   ]

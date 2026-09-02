@@ -32,11 +32,13 @@ spec:
         # dirs — fsGroup alone leaves root-created dirs at mode 755, which is r-x for
         # the group and leaves the agent unable to write its own home.
         - name: prepare
-          # Pinned to the immutable v2026.8.31 release tag (2026-09-02),
-          # replacing the 2026-08-13 `main` digest pin (PR #86). Digest-only
-          # refs are invisible to Renovate's regex manager (renovate.json);
-          # release-tag refs get weekly grouped update PRs.
-          image: nousresearch/hermes-agent:v2026.8.31
+          # Pinned to versioned release tag v2026.8.31 + its multi-arch digest
+          # (sha256:64923faeae26..., Docker Hub, pushed 2026-08-31). Refit date:
+          # 2026-09-02, replacing the 2026-08-13 `main` digest pin (PR #86).
+          # Digest-only refs are invisible to Renovate's regex manager; the
+          # tag@digest form keeps this content-addressed across nodes and tag
+          # re-pushes while renovate.json still tracks tag+digest updates.
+          image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
           command: ["/bin/sh", "-ec"]
           args:
             - |
@@ -126,7 +128,7 @@ spec:
         # 8642. This is what keeps working while you are away — the WebUI alone
         # cannot tick scheduled jobs.
         - name: hermes-agent
-          image: nousresearch/hermes-agent:v2026.8.31
+          image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
           # The upstream image does not include the cron post_script
           # completion hook (implemented locally 2026-08-13). Wrap the stock
           # entrypoint: apply the patch to the live /opt/hermes source first,
