@@ -6,7 +6,10 @@ metadata:
   annotations:
     hermes.nousresearch.com/description: >-
       Cron post_script completion hook for the pinned upstream hermes-agent
-      image (nousresearch/hermes-agent@sha256:ccc46f54...). The hook was
+      image (nousresearch/hermes-agent:v2026.8.31). 2026-09-02: the scheduler.py
+      delivery hunk was re-fitted for upstream's side-effect fence refactor
+      (v2026.8.31) — the post-script hook now runs inside the fence as a
+      delivery gate. The hook was
       implemented and test-verified locally on 2026-08-13 but the upstream
       image does not ship it; the deployment applies this patch to the source
       at pod start (initContainer -> /agent-src for the WebUI install,
@@ -116,8 +119,8 @@ data:
           "path": "cron/scheduler.py"
         },
         {
-          "new": "            if should_deliver:\n                # Completion hook: runs synchronously with the final response,\n                # after generation and before optional native platform delivery.\n                # This is deliberately NOT a second cron job and never scans\n                # saved output files, so it is completion-coupled with no race.\n                post_script = job.get(\"post_script\")\n                if success and isinstance(post_script, str) and post_script.strip():\n                    hook_ok, hook_output = _run_post_script(\n                        post_script.strip(),\n                        final_response,\n                        {\n                            \"HERMES_CRON_JOB_ID\": str(job[\"id\"]),\n                            \"HERMES_CRON_JOB_NAME\": str(job.get(\"name\", \"\")),\n                            \"HERMES_CRON_STATUS\": \"success\",\n                        },\n                        workdir=(job.get(\"workdir\") or \"\").strip() or None,\n                    )\n                    if not hook_ok:\n                        delivery_error = hook_output\n                        logger.error(\"Post script failed for job %s: %s\", job[\"id\"], hook_output)\n                    else:\n                        logger.info(\"Post script completed for job %s\", job[\"id\"])\n\n                if delivery_error is None:\n                    unresolved_origin = (\n                        _normalize_deliver_value(job.get(\"deliver\", \"local\")) == \"origin\"\n                        and not _resolve_delivery_targets(job)\n                    )\n                    try:\n                        delivery_error = _deliver_result(job, deliver_content, adapters=adapters, loop=loop)\n                    except Exception as de:\n                        delivery_error = str(de)\n                        logger.error(\"Delivery failed for job %s: %s\", job[\"id\"], de)\n",
-          "old": "            if should_deliver:\n                unresolved_origin = (\n                    _normalize_deliver_value(job.get(\"deliver\", \"local\")) == \"origin\"\n                    and not _resolve_delivery_targets(job)\n                )\n                try:\n                    delivery_error = _deliver_result(job, deliver_content, adapters=adapters, loop=loop)\n                except Exception as de:\n                    delivery_error = str(de)\n                    logger.error(\"Delivery failed for job %s: %s\", job[\"id\"], de)\n",
+          "new": "                        if not owns_delivery:\n                            raise _FireClaimLostDuringSideEffect\n                        # Completion hook: runs synchronously with the final\n                        # response, after generation and before optional native\n                        # platform delivery. Deliberately NOT a second cron job\n                        # and never scans saved output files, so it is\n                        # completion-coupled with no race. Runs inside the\n                        # side-effect fence: a post script is a side effect and\n                        # must not run on a stale claim owner.\n                        post_script = job.get(\"post_script\")\n                        if success and isinstance(post_script, str) and post_script.strip():\n                            hook_ok, hook_output = _run_post_script(\n                                post_script.strip(),\n                                final_response,\n                                {\n                                    \"HERMES_CRON_JOB_ID\": str(job[\"id\"]),\n                                    \"HERMES_CRON_JOB_NAME\": str(job.get(\"name\", \"\")),\n                                    \"HERMES_CRON_STATUS\": \"success\",\n                                },\n                                workdir=(job.get(\"workdir\") or \"\").strip() or None,\n                            )\n                            if not hook_ok:\n                                delivery_error = hook_output\n                                logger.error(\"Post script failed for job %s: %s\", job[\"id\"], hook_output)\n                            else:\n                                logger.info(\"Post script completed for job %s\", job[\"id\"])\n                        if delivery_error is None:\n                            delivery_attempted = True\n                            delivery_error = _deliver_result(\n",
+          "old": "                        if not owns_delivery:\n                            raise _FireClaimLostDuringSideEffect\n                        delivery_attempted = True\n                        delivery_error = _deliver_result(\n",
           "path": "cron/scheduler.py"
         },
         {
@@ -171,5 +174,5 @@ data:
           "path": "tools/cronjob_tools.py"
         }
       ],
-      "version": 1
+      "version": 2
     }

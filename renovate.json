@@ -24,8 +24,8 @@
       "description": "Track Hermes agent + WebUI image tags in workload manifests",
       "managerFilePatterns": ["/^workloads/.+\\.yaml$/"],
       "matchStrings": [
-        "image: (?<depName>nousresearch/hermes-agent):(?<currentValue>[^\\s]+)",
-        "image: (?<depName>ghcr\\.io/nesquena/hermes-webui):(?<currentValue>[^\\s]+)"
+        "image: (?<depName>nousresearch/hermes-agent):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?",
+        "image: (?<depName>ghcr\\.io/nesquena/hermes-webui):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?"
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"
