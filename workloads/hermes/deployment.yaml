@@ -211,6 +211,11 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: dashboard-auth-secret
+            # Point the browser-harness daemon at the chromium sidecar in this
+            # pod (see container "chromium" below) instead of hunting for a
+            # desktop Chrome that does not exist on this host.
+            - name: BU_CDP_URL
+              value: http://127.0.0.1:9222
           ports:
             - name: dashboard
               containerPort: 9119
@@ -293,6 +298,10 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: deepseek-api-key
+            # The WebUI runs the agent in-process, so its browser tools need the
+            # same CDP endpoint as the gateway container.
+            - name: BU_CDP_URL
+              value: http://127.0.0.1:9222
           ports:
             - name: http
               containerPort: 8787
@@ -415,6 +424,64 @@ spec:
             - name: collector-scripts
               mountPath: /app
               readOnly: true
+        # Headless Chromium for the agent's browser tools (browser_exec /
+        # browser-harness). The harness only drives an already-running Chromium
+        # over CDP — it cannot launch one itself on a headless host (no DISPLAY,
+        # and its local launcher expects an interactive desktop Chrome). So run
+        # the Chrome headless shell the agent image already ships (Playwright's
+        # chromium_headless_shell, revision 1234 under /opt/hermes/.playwright)
+        # as a sidecar. Same pod = same network namespace, so both agent
+        # containers reach it on loopback via BU_CDP_URL.
+        # The revision dir tracks the pinned agent image digest above — bump
+        # them together.
+        - name: chromium
+          image: nousresearch/hermes-agent@sha256:ccc46f54e3a0938ec955df36c40db0e3a01ce5bc3a8639376a840016175654d3
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              exec /opt/hermes/.playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell \
+                --remote-debugging-address=127.0.0.1 \
+                --remote-debugging-port=9222 \
+                --no-sandbox \
+                --disable-gpu \
+                --no-first-run \
+                --no-default-browser-check \
+                --user-data-dir=/tmp/chromium-profile
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+          env:
+            - name: HOME
+              value: /tmp
+          ports:
+            - name: cdp
+              containerPort: 9222
+              protocol: TCP
+          # CDP is bound to loopback on purpose (nothing outside the pod can
+          # drive the browser), so kubelet's httpGet against the pod IP can't
+          # probe it — use an exec probe that runs inside the container.
+          # Restarts a wedged browser without touching the rest of the pod.
+          livenessProbe:
+            exec:
+              command:
+                - python3
+                - -c
+                - "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9222/json/version',timeout=3)"
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
       terminationGracePeriodSeconds: 120
       volumes:
         - name: data
