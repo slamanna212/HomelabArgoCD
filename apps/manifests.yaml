@@ -15,6 +15,13 @@ spec:
       recurse: true
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - group: external-secrets.io
+      kind: ExternalSecret
+      namespace: monitoring
+      name: opnsense-exporter-config
+      jsonPointers:
+        - /metadata/annotations/force-sync
   syncPolicy:
     automated:
       prune: true
