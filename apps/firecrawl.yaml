@@ -12,7 +12,7 @@ spec:
     # repo/URL), so this is a git-path Helm source. The chart deploys the API,
     # workers, Playwright, Redis, RabbitMQ, and NuQ Postgres.
     - repoURL: https://github.com/firecrawl/firecrawl.git
-      targetRevision: v2.11.263
+      targetRevision: v2.11.310
       path: examples/kubernetes/firecrawl-helm
       helm:
         valueFiles:
