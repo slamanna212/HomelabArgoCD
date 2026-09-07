@@ -51,6 +51,21 @@ persistence:
   size: 10Gi
   mountPath: /app/.openviking
 
+# Readiness probe override. /ready stalls multi-second during AGFS lock
+# contention and k8up backup windows (observed up to ~7.5s on a 12-probe
+# sample). Chart default timeoutSeconds=5 still exceeds on the worst stalls,
+# flapping the pod out of the ClusterIP service (36k+ historical probe
+# failures). 10s timeout x failureThreshold 5 = tolerates ~50s of stalls
+# before the pod is marked unready.
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 10
+  failureThreshold: 5
+
 resources:
   requests:
     cpu: "500m"
