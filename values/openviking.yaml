@@ -8,7 +8,7 @@
 #
 # Choices worth knowing:
 #   * image: official ghcr.io/volcengine/openviking, pinned to a real release
-#     tag (v0.4.13). chart default :latest is non-reproducible.
+#     tag (v0.4.17.1). chart default :latest is non-reproducible.
 #   * replicaCount must stay 1 (RocksDB + byte-range lock over one PVC, single
 #     writer) — the chart hard-fails if you raise it.
 #   * bot (VikingBot) disabled — k8s chart default; we only need the API server.
@@ -31,7 +31,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/volcengine/openviking
-  tag: "v0.4.13"
+  tag: "v0.4.17.1"
   pullPolicy: IfNotPresent
 
 # Service name -> openviking.openviking.svc.cluster.local:1933
