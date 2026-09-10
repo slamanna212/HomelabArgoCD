@@ -25,7 +25,7 @@ data:
     model:
       # OpenRouter model slug. Change from the WebUI composer footer or by editing
       # config.yaml on the PVC — this ConfigMap is not re-read after first seed.
-      default: deepseek/deepseek-v4-flash-0731
+      default: deepseek/deepseek-v4.1-flash
       provider: auto
       base_url: https://openrouter.ai/api/v1
     agent:
