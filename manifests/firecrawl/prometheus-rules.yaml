@@ -9,17 +9,30 @@ spec:
   groups:
     - name: firecrawl.service
       rules:
-        # Firecrawl is Hermes' web_extract backend: if it is not ready, page
+        # Firecrawl is Hermes' web_extract backend: when it is not ready, page
         # extraction fails. The probe checks HTTP 2xx AND the {"status":"ok"} body.
+        #
+        # probe_success alone is not enough: it only exists when the exporter
+        # completed a probe, so a missing Probe/blackbox outage would make the
+        # expression empty and silently resolve the alert. Cover all three states:
+        # probe returned failure, scrape target down, and series entirely absent.
         - alert: FirecrawlUnavailable
-          expr: probe_success{job="firecrawl-readiness"} == 0
+          expr: |
+            probe_success{job="firecrawl-readiness"} == 0
+            or
+            up{job="firecrawl-readiness"} == 0
+            or
+            absent(up{job="firecrawl-readiness"})
           for: 5m
           labels:
             severity: critical
           annotations:
             summary: "Firecrawl extractor is not ready"
-            description: "Firecrawl readiness probe on {{ $labels.instance }} has been failing for more than 5 minutes. Hermes web_extract (extract_backend=firecrawl) will fail."
+            description: "Firecrawl readiness probe (job firecrawl-readiness) has been failing, unreachable, or absent for more than 5 minutes. Hermes web_extract (extract_backend=firecrawl) will fail."
 
+        # Covers every Deployment in the namespace (api, worker, nuq workers,
+        # nuq-prefetch, playwright, rabbitmq, redis, nuq-postgres) — any of them
+        # being down degrades scraping, not just the API.
         - alert: FirecrawlDeploymentUnavailable
           expr: kube_deployment_status_replicas_unavailable{namespace="firecrawl"} > 0
           for: 10m
@@ -31,6 +44,7 @@ spec:
 
         - alert: FirecrawlPodRestarting
           expr: increase(kube_pod_container_status_restarts_total{namespace="firecrawl"}[30m]) > 2
+          for: 5m
           labels:
             severity: warning
           annotations:

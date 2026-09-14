@@ -88,7 +88,7 @@ metadata:
 spec:
   jobName: firecrawl-readiness
   interval: 60s
-  module: http_2xx_body_ok
+  module: http_2xx_json_status_ok
   prober:
     url: blackbox-exporter.monitoring.svc.cluster.local:9115
   targets:

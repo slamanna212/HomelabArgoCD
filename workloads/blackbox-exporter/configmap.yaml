@@ -21,10 +21,11 @@ data:
           preferred_ip_protocol: ip4
           valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
           follow_redirects: true
-      # HTTP 2xx AND a matching response body — used for services whose health
+      # HTTP 2xx AND a matching JSON body — used for services whose health
       # endpoint always returns 200 but signals failure in the payload
-      # (e.g. Firecrawl returns {"status":"ok"}).
-      http_2xx_body_ok:
+      # (e.g. Firecrawl returns {"status":"ok"}). Named for the specific
+      # contract it enforces, not as a generic "body ok" module.
+      http_2xx_json_status_ok:
         prober: http
         timeout: 10s
         http:

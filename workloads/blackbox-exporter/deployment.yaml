@@ -15,14 +15,17 @@ spec:
       labels:
         app.kubernetes.io/name: blackbox-exporter
       annotations:
-        # blackbox_exporter parses its config at start and does not pick up an
-        # atomic file swap (verified 2026-09-14 against v0.28.0: after renaming a
-        # new config over the path, a newly added module returned "Unknown module"
-        # while the old module kept working). A ConfigMap edit alone therefore
-        # never takes effect. Bump this checksum whenever
+        # blackbox_exporter parses its config at start; it does NOT automatically
+        # reload a projected ConfigMap change (verified 2026-09-14 against v0.28.0:
+        # after atomically renaming a new config over the path, a newly added
+        # module returned "Unknown module" while the old module kept working). It
+        # does support reload on SIGHUP, but nothing in this Deployment sends one,
+        # so a ConfigMap edit alone never takes effect. Bump this checksum whenever
         # blackbox-exporter-config changes to force a rollout.
-        # sha256 of the blackbox.yml block in ConfigMap blackbox-exporter-config.
-        configmap-checksum: "3d2872dd2922a3936ee6ddd0f5664f03eb2acd9207c36e05c73665eb40f86641"
+        # sha256 of the content mounted at /config/blackbox.yml, i.e. the
+        # blackbox.yml block scalar value (de-indented, trailing newline included)
+        # — NOT the indented YAML source.
+        configmap-checksum: "922a9025b683bb0ccd864ea615492b9cdef10a22c669c62b941478ca41e367f3"
     spec:
       automountServiceAccountToken: false
       containers:
