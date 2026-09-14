@@ -8,15 +8,16 @@
 #   * images: official ghcr.io/firecrawl images (x86 cluster). The chart's own
 #     docker.io/winkkgmbh/* defaults are unofficial and untagged (latest);
 #     we override to official repos. `firecrawl` is pinned to a real release
-#     tag (2.11.2). playwright-service / nuq-postgres publish no stable version
-#     tag (only latest + linux-amd64), so they use the arch tag for determinism.
+#     tag, kept in sync with the chart targetRevision in apps/firecrawl.yaml.
+#     playwright-service / nuq-postgres publish no stable version tag (only
+#     latest + linux-amd64), so they use the arch tag for determinism.
 #   * resources: default requests total ~26Gi across 15+ pods. Scaled way down
 #     for one user. extractWorker (LLM structured-extraction, /v2/extract) is
 #     disabled because Hermes only needs scrape/markdown via the main worker +
 #     playwright. cclogWorker off by default in chart already.
-#   * persistence: NuQ Postgres holds the job queue + scrape records. Enable a
-#     Longhorn volume so restarts don't drop the queue DB. Hermes itself keeps
-#     no state here.
+#   * persistence: NuQ Postgres holds the job queue + scrape records, but it is
+#     DELIBERATELY left on emptyDir (see the note on nuqPostgres.persistence
+#     below). Queue state is transient and re-ingests on demand.
 #   * auth: USE_DB_AUTHENTICATION=false (chart default). API is unauthenticated.
 #     Safe ONLY because the Service is ClusterIP — nothing outside the cluster
 #     can reach it, and Hermes sends no key (FIRECRAWL_API_URL only).
@@ -118,7 +119,7 @@ rabbitmq:
 
 image:
   repository: ghcr.io/firecrawl/firecrawl
-  tag: "2.11.263"
+  tag: "2.11.337"
   pullPolicy: IfNotPresent
   dockerSecretEnabled: false
 
@@ -177,7 +178,11 @@ config:
   OLLAMA_BASE_URL: ""
   PROXY_SERVER: ""
   PROXY_USERNAME: ""
-  SEARXNG_ENDPOINT: ""
+  # Firecrawl's own /v2/search. Without this it answers HTTP 200 with an EMPTY
+  # result set ({"success":true,"data":{}}), which is a silent no-op. Point it at
+  # the same self-hosted SearXNG Hermes uses for web_search; the base URL only —
+  # firecrawl appends /search and requests format=json.
+  SEARXNG_ENDPOINT: "http://10.1.10.85:8080"
   SEARXNG_ENGINES: ""
   SEARXNG_CATEGORIES: ""
   SELF_HOSTED_WEBHOOK_URL: ""
