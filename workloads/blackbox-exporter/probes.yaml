@@ -77,3 +77,23 @@ spec:
         - 3.80.0.0
       labels:
         probe_target: AWS us-east-1
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: firecrawl-readiness
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: firecrawl-readiness
+  interval: 60s
+  module: http_2xx_json_status_ok
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://firecrawl-api.firecrawl.svc.cluster.local:3002/v0/health/readiness
+      labels:
+        probe_target: Firecrawl
