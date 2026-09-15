@@ -1,0 +1,372 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-memory-sidecar-fix
+  namespace: hermes
+  annotations:
+    hermes.nousresearch.com/description: >-
+      Durable source and configuration fix for OpenViking recall sidecars. The
+      agent patch keeps recalled context in the live request but strips it from
+      replayable SQLite/WebUI sidecars. The WebUI entrypoint patch is applied
+      after /apptoo is copied into /app and before server.py starts.
+data:
+  apply_patch.py: |
+    #!/usr/bin/env python3
+    """Apply exact, fail-closed source patches from a JSON spec.
+    
+    Usage: apply_patch.py SOURCE_ROOT SPEC_JSON
+    """
+    from __future__ import annotations
+    
+    import json
+    import os
+    import stat
+    import sys
+    import tempfile
+    from pathlib import Path
+    
+    
+    def _atomic_write_text(target: Path, text: str) -> None:
+        """Replace one patched source file without exposing a partial write."""
+        mode = stat.S_IMODE(target.stat().st_mode)
+        temporary: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=target.parent,
+                prefix=f".{target.name}.memory-patch-",
+                delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                handle.write(text)
+                handle.flush()
+                os.fsync(handle.fileno())
+                os.fchmod(handle.fileno(), mode)
+            os.replace(temporary, target)
+            temporary = None
+        finally:
+            if temporary is not None:
+                try:
+                    temporary.unlink()
+                except FileNotFoundError:
+                    pass
+    
+    
+    def apply_tree(root: Path, spec_path: Path) -> int:
+        try:
+            root = root.resolve()
+            spec = json.loads(spec_path.read_text(encoding="utf-8"))
+            hunks = spec["hunks"]
+            if not isinstance(hunks, list) or not hunks:
+                raise ValueError("spec.hunks must be a non-empty list")
+        except Exception as exc:
+            print(f"[memory-patch] invalid spec: {exc}", file=sys.stderr, flush=True)
+            return 1
+    
+        failures = 0
+        changed: dict[Path, str] = {}
+        for index, hunk in enumerate(hunks, 1):
+            try:
+                rel = Path(hunk["path"])
+                old = hunk["old"]
+                new = hunk["new"]
+                if rel.is_absolute() or ".." in rel.parts:
+                    raise ValueError("patch path escapes source root")
+                target = (root / rel).resolve()
+                target.relative_to(root)
+                if not target.is_file():
+                    raise FileNotFoundError(rel)
+                text = changed.get(target, target.read_text(encoding="utf-8"))
+                if new in text:
+                    print(f"[memory-patch] already-applied {rel} hunk {index}/{len(hunks)}", flush=True)
+                    changed[target] = text
+                    continue
+                if old not in text:
+                    print(f"[memory-patch] MISMATCH {rel} hunk {index}/{len(hunks)}: anchor not found", file=sys.stderr, flush=True)
+                    failures += 1
+                    continue
+                if text.count(old) != 1:
+                    print(f"[memory-patch] MISMATCH {rel} hunk {index}/{len(hunks)}: anchor appears {text.count(old)} times", file=sys.stderr, flush=True)
+                    failures += 1
+                    continue
+                changed[target] = text.replace(old, new, 1)
+                print(f"[memory-patch] applied {rel} hunk {index}/{len(hunks)}", flush=True)
+            except Exception as exc:
+                print(f"[memory-patch] MISMATCH hunk {index}/{len(hunks)}: {exc}", file=sys.stderr, flush=True)
+                failures += 1
+    
+        if failures:
+            return 2
+        for target, text in changed.items():
+            if text != target.read_text(encoding="utf-8"):
+                _atomic_write_text(target, text)
+        return 0
+    
+    
+    def main() -> int:
+        if len(sys.argv) != 3:
+            print(__doc__, file=sys.stderr)
+            return 1
+        return apply_tree(Path(sys.argv[1]), Path(sys.argv[2]))
+    
+    
+    if __name__ == "__main__":
+        raise SystemExit(main())
+  apply_memory_config.py: |
+    #!/usr/bin/env python3
+    """Idempotently enforce bounded OpenViking memory settings on the Hermes PVC."""
+    from __future__ import annotations
+    
+    import os
+    import shutil
+    import sys
+    import tempfile
+    from pathlib import Path
+    
+    from ruamel.yaml import YAML
+    
+    BOUNDED = {
+        "memory_enabled": False,
+        "user_profile_enabled": False,
+        "provider": "openviking",
+        "openviking": {
+            "recall_limit": 3,
+            "recall_score_threshold": 0.35,
+            "recall_max_injected_chars": 1800,
+            "profile_token_budget": 800,
+            "recall_timeout_seconds": 2.0,
+            "recall_request_timeout_seconds": 1.5,
+            "recall_full_read_limit": 1,
+            "recall_prefer_abstract": True,
+            "recall_resources": False,
+        },
+    }
+    
+    
+    def main() -> int:
+        if len(sys.argv) != 2:
+            print("usage: apply_memory_config.py CONFIG_PATH", file=sys.stderr)
+            return 1
+        path = Path(sys.argv[1])
+        if not path.is_file():
+            print(f"[memory-config] missing config: {path}", file=sys.stderr, flush=True)
+            return 1
+    
+        yaml = YAML()
+        yaml.preserve_quotes = True
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                data = yaml.load(handle)
+        except Exception as exc:
+            print(f"[memory-config] cannot parse config: {type(exc).__name__}", file=sys.stderr, flush=True)
+            return 2
+        if not isinstance(data, dict):
+            print("[memory-config] config root is not a mapping", file=sys.stderr, flush=True)
+            return 2
+    
+        memory = data.get("memory")
+        if memory is None:
+            memory = {}
+            data["memory"] = memory
+        if not isinstance(memory, dict):
+            print("[memory-config] memory section is not a mapping", file=sys.stderr, flush=True)
+            return 2
+    
+        changed = []
+        for key in ("memory_enabled", "user_profile_enabled", "provider"):
+            if memory.get(key) != BOUNDED[key]:
+                memory[key] = BOUNDED[key]
+                changed.append(f"memory.{key}")
+        openviking = memory.get("openviking")
+        if openviking is None:
+            openviking = {}
+            memory["openviking"] = openviking
+        if not isinstance(openviking, dict):
+            print("[memory-config] memory.openviking is not a mapping", file=sys.stderr, flush=True)
+            return 2
+        for key, value in BOUNDED["openviking"].items():
+            if openviking.get(key) != value:
+                openviking[key] = value
+                changed.append(f"memory.openviking.{key}")
+    
+        if not changed:
+            print("[memory-config] already bounded", flush=True)
+            return 0
+    
+        backup = path.with_name(path.name + ".memory-sidecar-fix.bak")
+        try:
+            original_stat = path.stat()
+            if not backup.exists():
+                shutil.copy2(path, backup)
+                try:
+                    os.chown(backup, original_stat.st_uid, original_stat.st_gid)
+                except PermissionError:
+                    pass
+            mode = original_stat.st_mode & 0o777
+            with tempfile.NamedTemporaryFile(
+                "w", encoding="utf-8", dir=path.parent, prefix=".memory-config-", delete=False
+            ) as handle:
+                temporary = Path(handle.name)
+                yaml.dump(data, handle)
+                handle.flush()
+                os.fchmod(handle.fileno(), mode or 0o600)
+                try:
+                    os.fchown(handle.fileno(), original_stat.st_uid, original_stat.st_gid)
+                except PermissionError:
+                    pass
+            os.replace(temporary, path)
+        except Exception as exc:
+            try:
+                if "temporary" in locals() and temporary.exists():
+                    temporary.unlink()
+            except OSError:
+                pass
+            print(f"[memory-config] write failed: {type(exc).__name__}", file=sys.stderr, flush=True)
+            return 3
+    
+        print(f"[memory-config] updated {len(changed)} bounded settings; backup={backup.name}", flush=True)
+        return 0
+    
+    
+    if __name__ == "__main__":
+        raise SystemExit(main())
+  patch_webui_entrypoint.py: |
+    #!/usr/bin/env python3
+    """Insert the durable WebUI source patch into the upstream init script."""
+    from __future__ import annotations
+    
+    import sys
+    from pathlib import Path
+    
+    MARKER = 'echo ""; echo "== Running hermes-webui"\n'
+    INJECTION = '''echo ""; echo "== Applying durable Hermes memory sidecar fix"
+    python3 /memory-patches/apply_patch.py /app /memory-patches/webui-spec.json || error_exit "Hermes memory sidecar patch failed"
+    
+    '''
+    
+    
+    def main() -> int:
+        if len(sys.argv) != 2:
+            print("usage: patch_webui_entrypoint.py INIT_SCRIPT", file=sys.stderr)
+            return 1
+        path = Path(sys.argv[1])
+        text = path.read_text(encoding="utf-8")
+        if INJECTION in text:
+            print("[memory-patch] WebUI init wrapper already contains the patch hook", flush=True)
+            return 0
+        if text.count(MARKER) != 1:
+            print("[memory-patch] WebUI init marker missing or not unique", file=sys.stderr, flush=True)
+            return 2
+        path.write_text(text.replace(MARKER, INJECTION + MARKER, 1), encoding="utf-8")
+        print("[memory-patch] inserted WebUI patch hook", flush=True)
+        return 0
+    
+    
+    if __name__ == "__main__":
+        raise SystemExit(main())
+  webui-entrypoint.sh: |
+    #!/bin/bash
+    set -eu
+    umask 077
+    
+    staged=/app/.hermeswebui_init_memory_sidecar.bash
+    cp /hermeswebui_init.bash "$staged"
+    chmod 0755 "$staged"
+    python3 /memory-patches/patch_webui_entrypoint.py "$staged"
+    exec "$staged"
+  agent-spec.json: |
+    {
+      "hunks": [
+        {
+          "path": "agent/memory_manager.py",
+          "old": "_INTERNAL_CONTEXT_RE = re.compile(\n    r'<\\s*memory-context\\s*>[\\s\\S]*?</\\s*memory-context\\s*>',\n    re.IGNORECASE,\n)\n",
+          "new": "_INTERNAL_CONTEXT_RE = re.compile(\n    r'<\\s*memory-context\\s*>[\\s\\S]*?</\\s*memory-context\\s*>',\n    re.IGNORECASE,\n)\n_UNTERMINATED_CONTEXT_RE = re.compile(\n    r'<\\s*memory-context\\s*>[\\s\\S]*\\Z',\n    re.IGNORECASE,\n)\n_REPLAY_BLANK_LINES_RE = re.compile(r'\\n[ \\t]*\\n(?:[ \\t]*\\n)+')\n"
+        },
+        {
+          "path": "agent/memory_manager.py",
+          "old": "def sanitize_context(text: str) -> str:\n    \"\"\"Strip fence tags, injected context blocks, and system notes from provider output.\"\"\"\n    text = _INTERNAL_CONTEXT_RE.sub('', text)\n    text = _INTERNAL_NOTE_RE.sub('', text)\n    text = _FENCE_TAG_RE.sub('', text)\n    return text\n\n\n",
+          "new": "def sanitize_context(text: str) -> str:\n    \"\"\"Strip fence tags, injected context blocks, and system notes from provider output.\"\"\"\n    text = _INTERNAL_CONTEXT_RE.sub('', text)\n    text = _INTERNAL_NOTE_RE.sub('', text)\n    text = _FENCE_TAG_RE.sub('', text)\n    return text\n\n\ndef strip_memory_context_for_replay(text: Any) -> str:\n    \"\"\"Return text safe to persist and replay without recalled memory context.\"\"\"\n    if not isinstance(text, str):\n        return ''\n    clean = _INTERNAL_CONTEXT_RE.sub('', text)\n    clean = _UNTERMINATED_CONTEXT_RE.sub('', clean)\n    clean = _INTERNAL_NOTE_RE.sub('', clean)\n    clean = _FENCE_TAG_RE.sub('', clean)\n    clean = _REPLAY_BLANK_LINES_RE.sub('\\n\\n', clean)\n    return clean.strip()\n\n\ndef persistable_api_content(api_content: Any, clean_content: Any) -> Optional[str]:\n    \"\"\"Return a replay-safe sidecar, omitting recall-only context.\"\"\"\n    if not isinstance(api_content, str) or not api_content:\n        return None\n    clean = strip_memory_context_for_replay(api_content)\n    if not clean:\n        return None\n    if isinstance(clean_content, str) and clean.strip() == clean_content.strip():\n        return None\n    return clean\n\n\n"
+        },
+        {
+          "path": "agent/turn_context.py",
+          "old": "from agent.memory_manager import build_memory_context_block\n",
+          "new": "from agent.memory_manager import (\n    build_memory_context_block,\n    persistable_api_content,\n    strip_memory_context_for_replay,\n)\n"
+        },
+        {
+          "path": "agent/turn_context.py",
+          "old": "\n\ndef substitute_api_content(api_msg: Dict[str, Any]) -> Optional[str]:\n",
+          "new": "\n\ndef compose_persistable_user_api_content(\n    content: str,\n    ext_prefetch_cache: Optional[str],\n    plugin_user_context: Optional[str],\n) -> Optional[str]:\n    \"\"\"Compose the live sidecar, then remove recall-only context for storage.\"\"\"\n    composed = compose_user_api_content(\n        content,\n        ext_prefetch_cache,\n        plugin_user_context,\n    )\n    if composed is None:\n        return None\n    return persistable_api_content(composed, content)\n\n\ndef substitute_api_content(api_msg: Dict[str, Any]) -> Optional[str]:\n"
+        },
+        {
+          "path": "run_agent.py",
+          "old": "from agent.memory_manager import sanitize_context\n",
+          "new": "from agent.memory_manager import (\n    persistable_api_content,\n    sanitize_context,\n    strip_memory_context_for_replay,\n)\n"
+        },
+        {
+          "path": "run_agent.py",
+          "old": "                _row_api_content = msg.get(\"api_content\")\n                if not isinstance(_row_api_content, str):\n                    _row_api_content = None\n",
+          "new": "                _row_api_content = persistable_api_content(\n                    msg.get(\"api_content\"), content\n                )\n"
+        },
+        {
+          "path": "run_agent.py",
+          "old": "                # Load-time sanitize divergence: get_messages_as_conversation\n                # replays user/assistant rows through\n                # ``sanitize_context(content).strip()``, so content that\n                # sanitize would rewrite (echoed/pasted <memory-context>\n                # fences or system notes) replays different bytes after a\n                # session reload even though THIS turn sent it verbatim.\n                # Capture the sent bytes in the sidecar so a reloaded session\n                # replays what was actually on the wire. Compared in wire form\n                # (both sides .strip()-ed — the api_messages build strips\n                # every outgoing content string) so plain surrounding\n                # whitespace doesn't grow redundant sidecars.\n                if (\n                    _row_api_content is None\n                    and role in (\"user\", \"assistant\")\n                    and isinstance(content, str)\n                    and content\n                    and sanitize_context(content).strip() != content.strip()\n                ):\n                    _row_api_content = content\n",
+          "new": "                # Never create a durable copy of recalled memory context from\n                # a load-time sanitization difference. A sidecar may retain only\n                # non-memory text that remains necessary for replay.\n                if (\n                    _row_api_content is None\n                    and role in (\"user\", \"assistant\")\n                    and isinstance(content, str)\n                    and content\n                ):\n                    _replay_content = strip_memory_context_for_replay(content)\n                    if _replay_content != content.strip():\n                        _row_api_content = persistable_api_content(\n                            content, _replay_content\n                        )\n"
+        },
+        {
+          "path": "hermes_state.py",
+          "old": "from agent.memory_manager import sanitize_context\n",
+          "new": "from agent.memory_manager import (\n    persistable_api_content,\n    sanitize_context,\n    strip_memory_context_for_replay,\n)\n"
+        },
+        {
+          "path": "hermes_state.py",
+          "old": "        stored_content = self._encode_content(content)\n\n        message_timestamp = time.time()\n",
+          "new": "        stored_content = self._encode_content(content)\n        stored_api_content = persistable_api_content(api_content, content)\n\n        message_timestamp = time.time()\n"
+        },
+        {
+          "path": "hermes_state.py",
+          "old": "                    1 if _compressed_summary else 0,\n                    1,\n                    _scrub_surrogates(api_content) if isinstance(api_content, str) else None,\n                    _scrub_surrogates(display_kind) if isinstance(display_kind, str) else None,\n",
+          "new": "                    1 if _compressed_summary else 0,\n                    1,\n                    _scrub_surrogates(stored_api_content)\n                    if isinstance(stored_api_content, str)\n                    else None,\n                    _scrub_surrogates(display_kind) if isinstance(display_kind, str) else None,\n"
+        },
+        {
+          "path": "hermes_state.py",
+          "old": "            api_content = msg.get(\"api_content\")\n\n            cur = conn.execute(\n",
+          "new": "            api_content = persistable_api_content(\n                msg.get(\"api_content\"), msg.get(\"content\")\n            )\n\n            cur = conn.execute(\n"
+        },
+        {
+          "path": "hermes_state.py",
+          "old": "        encoded = self._encode_content(content)\n\n        def _do(conn):\n",
+          "new": "        encoded = self._encode_content(content)\n        persisted_api_content = persistable_api_content(api_content, content)\n\n        def _do(conn):\n"
+        },
+        {
+          "path": "hermes_state.py",
+          "old": "                (_scrub_surrogates(api_content), session_id, encoded),\n",
+          "new": "                (\n                    _scrub_surrogates(persisted_api_content),\n                    session_id,\n                    encoded,\n                ),\n"
+        },
+        {
+          "path": "hermes_state.py",
+          "old": "            content = self._decode_content(row[\"content\"])\n            if row[\"role\"] in {\"user\", \"assistant\"} and isinstance(content, str):\n                content = sanitize_context(content).strip()\n",
+          "new": "            content = self._decode_content(row[\"content\"])\n            if row[\"role\"] in {\"user\", \"assistant\"} and isinstance(content, str):\n                content = strip_memory_context_for_replay(content)\n"
+        },
+        {
+          "path": "hermes_state.py",
+          "old": "            # api_content is the byte-fidelity sidecar: the exact string sent\n            # to the API when it differed from the clean content. Returned\n            # VERBATIM — no sanitize_context, no strip — because the replay\n            # path substitutes it for content to keep the provider prompt\n            # cache prefix byte-stable across turns. Cleaning it here would\n            # re-introduce the divergence it exists to remove.\n            if row[\"api_content\"]:\n                msg[\"api_content\"] = row[\"api_content\"]\n",
+          "new": "            # The live API may receive recalled memory in this sidecar, but\n            # durable replay must never re-inject it. Preserve only unrelated\n            # sidecar text that still differs from the clean message content.\n            replay_api_content = persistable_api_content(\n                row[\"api_content\"], content\n            )\n            if replay_api_content:\n                msg[\"api_content\"] = replay_api_content\n"
+        }
+      ]
+    }
+  webui-spec.json: |
+    {
+      "hunks": [
+        {
+          "path": "api/models.py",
+          "old": "logger = logging.getLogger(__name__)\nCLI_VISIBLE_SESSION_LIMIT = 20\n",
+          "new": "logger = logging.getLogger(__name__)\n\n\ndef replay_safe_messages(messages):\n    \"\"\"Copy messages for WebUI persistence without recalled memory context.\"\"\"\n    from agent.memory_manager import persistable_api_content\n\n    safe = []\n    for message in messages or []:\n        if not isinstance(message, dict):\n            safe.append(copy.deepcopy(message))\n            continue\n        projected = copy.deepcopy(message)\n        if \"api_content\" in projected:\n            projected[\"api_content\"] = persistable_api_content(\n                projected.get(\"api_content\"), projected.get(\"content\")\n            )\n        safe.append(projected)\n    return safe\n\n\nCLI_VISIBLE_SESSION_LIMIT = 20\n"
+        },
+        {
+          "path": "api/models.py",
+          "old": "        meta['messages'] = self.messages\n",
+          "new": "        meta['messages'] = replay_safe_messages(self.messages)\n"
+        }
+      ]
+    }

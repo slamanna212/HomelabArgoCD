@@ -80,12 +80,20 @@ spec:
                 echo "config.yaml already exists on the PVC; leaving it untouched"
               fi
 
+              # Enforce bounded OpenViking recall on both fresh and existing PVCs.
+              # The migrator backs up the pre-change config once and preserves all
+              # unrelated user settings.
+              /opt/hermes/.venv/bin/python /memory-patches/apply_memory_config.py /data/home/config.yaml || exit 1
+
               # Apply the cron post-script completion hook to the shared agent
               # source copy (see hermes-cron-post-script-configmap.yaml).
               # Patching agent-src here means the WebUI installs the patched
               # agent at its next boot. Never fatal: a patch mismatch must not
               # block pod startup.
               python3 /patches/apply_patch.py /agent-src || echo "[init] WARNING: agent source patch failed (non-fatal)"
+              # The memory sidecar fix is fail-closed: serving the old writer is
+              # worse than refusing startup when the pinned source drifts.
+              python3 /memory-patches/apply_patch.py /agent-src /memory-patches/agent-spec.json || exit 1
           volumeMounts:
             - name: data
               mountPath: /data
@@ -96,6 +104,9 @@ spec:
               readOnly: true
             - name: patches
               mountPath: /patches
+              readOnly: true
+            - name: memory-patches
+              mountPath: /memory-patches
               readOnly: true
           resources:
             requests:
@@ -139,6 +150,7 @@ spec:
           args:
             - |
               python3 /patches/apply_patch.py /opt/hermes || echo "[gateway] WARNING: agent source patch failed (non-fatal)"
+              python3 /memory-patches/apply_patch.py /opt/hermes /memory-patches/agent-spec.json || exit 1
               exec /init /opt/hermes/docker/main-wrapper.sh gateway run
           env:
             - name: HERMES_HOME
@@ -236,6 +248,9 @@ spec:
             - name: patches
               mountPath: /patches
               readOnly: true
+            - name: memory-patches
+              mountPath: /memory-patches
+              readOnly: true
           resources:
             requests:
               cpu: 500m
@@ -257,6 +272,12 @@ spec:
           # appears in exp-v0.52.159, so no stable release currently works in a
           # two-container setup. Revisit once a stable release carries the fix.
           image: ghcr.io/nesquena/hermes-webui:0.52.264
+          # Run the upstream UID/setup sequence through a Git-managed wrapper.
+          # The wrapper inserts the WebUI source patch after /apptoo is copied
+          # into /app and before server.py starts.
+          command: ["/bin/bash", "-ec"]
+          args:
+            - exec /memory-patches/webui-entrypoint.sh
           env:
             - name: HERMES_WEBUI_HOST
               value: "0.0.0.0"
@@ -264,6 +285,10 @@ spec:
               value: "8787"
             - name: HERMES_WEBUI_STATE_DIR
               value: /home/hermeswebui/.hermes/webui
+            # api/config.py honors this explicit source selection. It points at
+            # the writable staged copy created by hermeswebui_init.bash.
+            - name: HERMES_WEBUI_AGENT_DIR
+              value: /app/hermes-agent-src
             # Same pod, so the gateway is on loopback rather than a service name.
             # Drives the Tasks/System "gateway" status and scheduled-job ticking.
             - name: HERMES_API_URL
@@ -320,6 +345,9 @@ spec:
               subPath: workspace
             - name: todoist-mcp
               mountPath: /opt/hermes-todoist
+              readOnly: true
+            - name: memory-patches
+              mountPath: /memory-patches
               readOnly: true
           readinessProbe:
             httpGet:
@@ -503,6 +531,10 @@ spec:
         - name: patches
           configMap:
             name: hermes-cron-post-script
+        - name: memory-patches
+          configMap:
+            name: hermes-memory-sidecar-fix
+            defaultMode: 0555
         - name: ai-collector-deps
           emptyDir: {}
         - name: collector-scripts
