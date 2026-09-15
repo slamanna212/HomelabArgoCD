@@ -27,8 +27,14 @@ data:
     # logs "[config-migrate] WARNING: This config predates version 12" when this
     # is missing. Bump this only against the upstream config changelog.
     #
-    # 39 matches the running install (Hermes v0.21.0). A stale value is not fatal
-    # (Hermes migrates it forward), but it must never be < 12.
+    # 39 = the version this seed was written for (Hermes v0.21.0). Deliberately NOT
+    # left at 12: a seed stands in for a config Hermes would otherwise create fresh,
+    # and a fresh config is written at the CURRENT version with no migration ladder
+    # involved (run_migrations only applies steps whose target exceeds this value).
+    # Stamping 12 would instead make the seed behave like a two-year-old config being
+    # upgraded through 27 migrations. Anything absent below is deep-merged from
+    # Hermes' own defaults at read time, so omitting a key here is never fatal — it
+    # just means "use the default". Never set this below SUPPORT_FLOOR_VERSION (12).
     _config_version: 39
 
     model:
@@ -74,14 +80,15 @@ data:
         gpt-5.6-luna: max
 
     auxiliary:
-      # Cheap side task — ranking/assembly only. `minimal` clamps to DeepSeek's
-      # lowest supported effort (low). Do not raise it: DeepSeek reasoning tokens
-      # bill against max_tokens, and a thinking title call can hit finish_reason
-      # =length and return EMPTY content.
+      # Cheap side task — ranking/assembly only. `low` is DeepSeek's lowest supported
+      # effort and is written literally rather than relying on the clamp that maps
+      # `minimal` -> `low`. Do not raise it: DeepSeek bills reasoning tokens against
+      # max_tokens, and a thinking title call can hit finish_reason=length and return
+      # EMPTY content. Valid DeepSeek efforts: low, medium, high, max.
       title_generation:
         provider: deepseek
         model: deepseek-flash
-        reasoning_effort: minimal
+        reasoning_effort: low
 
     terminal:
       # Shell commands run inside this pod's own container.
