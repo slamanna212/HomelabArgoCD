@@ -15,9 +15,17 @@ spec:
       allowScheduling: true
       storageReserved: 44462050099
       tags: []
+    # 2026-09-17: draining this disk. /dev/sdb shows sustained write-latency
+    # degradation (~114 writes / 30s at ~2.5s avg, 6-22 I/Os permanently in
+    # flight, queue never drains) via /proc/diskstats sampling. No SMART data
+    # (QEMU virtual disk) and no kernel I/O errors yet - pre-failure, not hard
+    # failure. Replicas evict to the sata disks on work03v/work04v. Revert both
+    # fields to `allowScheduling: true` (drop evictionRequested) once the
+    # underlying disk is replaced and re-verified.
     longhorn-sata:
       path: /var/lib/longhorn-sata
-      allowScheduling: true
+      allowScheduling: false
+      evictionRequested: true
       storageReserved: 10737418240
       tags: ["sata"]
 ---
