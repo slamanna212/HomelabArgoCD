@@ -15,13 +15,23 @@ spec:
       allowScheduling: true
       storageReserved: 44462050099
       tags: []
-    # 2026-09-17: draining this disk. /dev/sdb shows sustained write-latency
-    # degradation (~114 writes / 30s at ~2.5s avg, 6-22 I/Os permanently in
-    # flight, queue never drains) via /proc/diskstats sampling. No SMART data
-    # (QEMU virtual disk) and no kernel I/O errors yet - pre-failure, not hard
-    # failure. Replicas evict to the sata disks on work03v/work04v. Revert both
-    # fields to `allowScheduling: true` (drop evictionRequested) once the
-    # underlying disk is replaced and re-verified.
+    # 2026-09-17: draining this disk. /proc/diskstats sampling showed sustained
+    # write-latency degradation (~114 writes / 30s at ~2.5s avg, 6-22 I/Os
+    # permanently in flight, queue never drains). No SMART data (QEMU virtual
+    # disk) and no kernel I/O errors yet - pre-failure, not hard failure.
+    #
+    # NOTE: the sampled device was /dev/sdb, but this mount is NOT confirmed to
+    # be that device. HomelabAnsible host_vars/slama-read-k8work01v.yml sets
+    # `longhorn_sata_disk: sda` for this node (the role default is sdb), and the
+    # prep role mounts by filesystem UUID, so device letters are not
+    # authoritative here. Confirm with `findmnt -no SOURCE /var/lib/longhorn-sata`
+    # on the node before relying on this. If it resolves to something other than
+    # sdb, the degradation is on a different disk and this eviction is aimed at
+    # the wrong one.
+    #
+    # Replicas evict to the sata disks on work03v/work04v. Revert both fields to
+    # `allowScheduling: true` (drop evictionRequested) once resolved, or ArgoCD
+    # selfHeal keeps the disk permanently in eviction and replicas can't return.
     longhorn-sata:
       path: /var/lib/longhorn-sata
       allowScheduling: false
