@@ -195,7 +195,12 @@ spec:
             # the WebUI shows "Hermes agent is not responding" / "gateway endpoint not
             # reachable" while chat still works, since chat runs the agent in-process.
             # 127.0.0.1 keeps it inside the pod's network namespace — the WebUI reaches
-            # it over loopback, nothing outside the pod can.
+            # it over loopback. API_SERVER_HOST widens that bind to the pod
+            # interface so LAN clients (Continue, Open WebUI) can reach it —
+            # API_SERVER_KEY is then the only thing in front of an agent with
+            # a shell in this cluster.
+            - name: API_SERVER_HOST
+              value: "0.0.0.0"
             - name: API_SERVER_KEY
               valueFrom:
                 secretKeyRef:
