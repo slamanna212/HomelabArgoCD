@@ -379,6 +379,108 @@ spec:
               # Headroom for the dependency install at boot, which resolves and builds
               # the agent's full tree. Upstream's compose sets no memory limit at all.
               memory: 4Gi
+        # Astra — Sam's own Hermes web UI (github.com/slamanna212/Astra), running as a
+        # SECOND UI option alongside nesquena's hermes-webui above, not a replacement.
+        # Same PVC and same loopback path to the gateway as the container above, so
+        # both UIs see the same sessions, memory and skills.
+        - name: astra
+          # Immutable per-commit tag: Astra's Container workflow publishes only
+          # `latest` + `sha-<full sha>`, so this is the reproducible pin. Do NOT move
+          # it to `latest` — Astra is under active development and a floating tag
+          # would silently change the running UI on any pod restart or node reboot,
+          # the same trap as gluetun's `:latest` in CLAUDE.md. To bump, replace the
+          # sha with the new commit's sha once its "Container" run has pushed it.
+          image: ghcr.io/slamanna212/astra:sha-07058cadbb0d8fe836294dff0036a39cbe0b33fe
+          imagePullPolicy: IfNotPresent
+          # The image already runs as uid 1000 and never needs root (unlike the two
+          # upstream images, which do UID alignment then drop), so it can be locked
+          # down properly.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+          env:
+            # Astra derives every path from HERMES_HOME and refuses to start without
+            # it — deliberately empty in the image so no deployment inherits the
+            # base image's default.
+            - name: HERMES_HOME
+              value: /home/astra/.hermes
+            # Files/Logs browse only this root, never HERMES_HOME.
+            - name: ASTRA_WORKSPACE_DIR
+              value: /workspace
+            # Astra fails closed at startup without a password hash and a >=32-char
+            # session secret (astra/config.py). Both are Key Vault keys, and the
+            # deployment must NOT be merged before they exist: a container that
+            # cannot start never becomes Ready, which drops this whole pod out of
+            # the hermes Service — taking 8787/9119/8642 down with it.
+            # Note it is the scrypt HASH here, never the password: Astra's own
+            # design keeps the plaintext out of the container entirely.
+            - name: ASTRA_PASSWORD_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: astra-password-hash
+            - name: ASTRA_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: astra-session-secret
+            # This Service is a plain HTTP LoadBalancer on the LAN — nothing in front
+            # of 10.1.20.205 terminates TLS. Astra defaults this to true, and a
+            # Secure cookie is never sent back over http://, so login would appear to
+            # succeed and then silently not persist. Flip it to true only if this
+            # port ever gets TLS.
+            - name: ASTRA_COOKIE_SECURE
+              value: "false"
+            # Chat runs the agent in-process here, so this container needs the same
+            # model credentials the hermes-webui container gets.
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: openrouter-api-key
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: deepseek-api-key
+          ports:
+            - name: astra
+              containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /home/astra/.hermes
+              subPath: home
+            - name: data
+              mountPath: /workspace
+              subPath: workspace
+          # /api/health is Astra's unauthenticated liveness; it pings state.db.
+          # Deliberately no long initial delay: unlike the WebUI there is no
+          # dependency install at boot, so the process is serving in seconds.
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: astra
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: astra
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              # Headroom for the in-process agent runtime (chat), not a dep install.
+              memory: 2Gi
         # Native AI allowance collector. Claude uses its own persisted OAuth
         # refresh-token lifecycle; Codex is read-only against the gateway auth store.
         - name: ai-usage-collector
