@@ -1,0 +1,40 @@
+# TEMPORARY — remove once the loki StatefulSet has rolled to the fixed template.
+#
+# Why this exists (2026-09-21): values/loki.yaml was fixed (PR #120) to mount
+# loki-gluetun-rules instead of the long-deleted loki-vpn-rules. However the
+# stuck loki-0 pod (Pending/ContainerCreating since 04:31 UTC, 259 FailedMount
+# events) blocks the StatefulSet rolling update — the controller will not
+# replace a pod that is not Running and Ready, and this pod can never become
+# Ready while its volume's ConfigMap is missing.
+#
+# Restoring this ConfigMap lets the old pod finish its mount and go Ready, at
+# which point the controller replaces it with the new (fixed) template. The
+# new template mounts loki-gluetun-rules and does NOT reference this
+# ConfigMap — a follow-up commit deletes this file again.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-vpn-rules
+  namespace: monitoring
+data:
+  vpn-alerts.yaml: |
+    groups:
+      - name: vpn
+        interval: 30s
+        rules:
+          - alert: WireGuardVPNLogin
+            expr: 'sum by (client, src) (count_over_time({job="network-syslog", vpn_event="VPN Client Connected"} | pattern `<_>src=<src> suser=<client> UNIFIclientIp=<_>` [30s])) > 0'
+            for: 0s
+            labels:
+              severity: warning
+            annotations:
+              summary: WireGuard VPN client connected
+              description: '{{ $labels.client }} connected to WireGuard VPN from {{ $labels.src }}'
+          - alert: WireGuardVPNDisconnect
+            expr: 'sum by (client, duration, usage_down, usage_up) (count_over_time({job="network-syslog", vpn_event="VPN Client Disconnected"} | pattern `<_>suser=<client> UNIFIduration=<duration> UNIFIusageDown=<usage_down> UNIFIusageUp=<usage_up> UNIFIvpnName=<_>` [30s])) > 0'
+            for: 0s
+            labels:
+              severity: info
+            annotations:
+              summary: WireGuard VPN client disconnected
+              description: '{{ $labels.client }} disconnected. Connected for {{ $labels.duration }}. Data used: {{ $labels.usage_down }} down / {{ $labels.usage_up }} up'
