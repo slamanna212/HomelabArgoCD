@@ -26,3 +26,9 @@ spec:
       port: 8642
       targetPort: 8642
       protocol: TCP
+    # Astra (slamanna212/Astra) — the second web UI, in the same pod as the port
+    # above and therefore on the same MetalLB IP.
+    - name: astra
+      port: 9090
+      targetPort: astra
+      protocol: TCP
