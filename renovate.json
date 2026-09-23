@@ -21,6 +21,17 @@
     },
     {
       "customType": "regex",
+      "description": "Track Degoog and Valkey image tags in workload manifests",
+      "managerFilePatterns": ["/^workloads/.+\\.yaml$/"],
+      "matchStrings": [
+        "image: (?<depName>ghcr\\.io/degoog-org/degoog):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?",
+        "image: (?<depName>valkey/valkey):(?<currentValue>[^\\s@]+)"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
       "description": "Track Hermes agent + WebUI image tags in workload manifests",
       "managerFilePatterns": ["/^workloads/.+\\.yaml$/"],
       "matchStrings": [

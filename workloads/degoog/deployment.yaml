@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: degoog
+  namespace: degoog
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: degoog
+      component: web
+  template:
+    metadata:
+      labels:
+        app: degoog
+        component: web
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: degoog
+          # Upstream entrypoint creates/chowns /app/data, then drops to uid 1000.
+          image: ghcr.io/degoog-org/degoog:0.26.0@sha256:69e28fe2dc8008981b0ea8b9270f6b5b482d107b8a3dfa71d8acdac37f4b77c0
+          env:
+            - name: DEGOOG_PORT
+              value: "4444"
+            - name: DEGOOG_PUBLIC_INSTANCE
+              value: "false"
+            - name: DEGOOG_VALKEY_URL
+              value: redis://degoog-valkey:6379
+            - name: DEGOOG_SETTINGS_PASSWORDS
+              valueFrom:
+                secretKeyRef:
+                  name: degoog-secrets
+                  key: settings-passwords
+          ports:
+            - name: http
+              containerPort: 4444
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: degoog-data
