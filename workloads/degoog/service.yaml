@@ -4,10 +4,15 @@ metadata:
   name: degoog
   namespace: degoog
   annotations:
+    # Pinned on the k8s VLAN's MetalLB path, same scheme as dispatcharr (.202),
+    # network-syslog (.203), hermes (.205) and guacamole (.206).
     metallb.universe.tf/loadBalancerIPs: 10.1.20.207
     kube-vip.io/ignore: "true"
 spec:
   type: LoadBalancer
+  # Local preserves the real client source IP, which is what Degoog's per-IP rate
+  # limiting and honeypot ban list key on. Same choice as guacamole/dispatcharr.
+  externalTrafficPolicy: Local
   selector:
     app: degoog
     component: web

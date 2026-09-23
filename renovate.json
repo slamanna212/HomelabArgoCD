@@ -62,6 +62,17 @@
       "registryUrlTemplate": "https://ghcr.io",
       "datasourceTemplate": "docker",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Track degoog + valkey image tags in the degoog workload manifests",
+      "managerFilePatterns": ["/^workloads\\/degoog\\/.+\\.yaml$/"],
+      "matchStrings": [
+        "image: (?<depName>ghcr\\.io/degoog-org/degoog):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?",
+        "image: (?<depName>valkey/valkey):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
     }
   ],
   "packageRules": [
@@ -93,6 +104,12 @@
       "description": "Group the Plex monitoring exporter images together",
       "matchPackageNames": ["ghcr.io/onedr0p/exportarr", "ghcr.io/willfantom/overseerr-exporter", "python"],
       "groupName": "plex monitoring exporters"
+    },
+    {
+      "description": "degoog publishes latest/main/develop plus per-arch tags alongside real semver releases; only track stable X.Y.Z",
+      "matchPackageNames": ["ghcr.io/degoog-org/degoog"],
+      "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/",
+      "ignoreUnstable": true
     }
   ]
 }
