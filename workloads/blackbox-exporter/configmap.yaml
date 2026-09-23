@@ -34,9 +34,11 @@ data:
           follow_redirects: true
           fail_if_body_not_matches_regexp:
             - '"status"\s*:\s*"ok"'
-      # HTTP 2xx AND a NON-EMPTY, LIST-VALUED JSON `results` array — the contract
-      # the real consumers depend on (Hermes web_search via SEARXNG_URL and
-      # Firecrawl /v2/search via SEARXNG_ENDPOINT both read results[].url).
+      # HTTP 2xx AND a usable JSON `results` array: list-valued, non-empty, first
+      # element an object with a non-empty `url`. That is what the consumers read
+      # (Hermes web_search via SEARXNG_URL and Firecrawl /v2/search both use
+      # results[].url) — it does NOT assert the url is well-formed, nor check
+      # elements beyond the first.
       # Degoog answers HTTP 200 with {"query":"...","results":[],...} when its
       # engines all fail, which is exactly how the previous SearXNG backend
       # failed silently for weeks; a plain http_2xx probe calls that healthy.
@@ -57,4 +59,4 @@ data:
           # Search responses are small; bound what the exporter will buffer.
           body_size_limit: 2MB
           fail_if_body_json_not_matches_cel: >-
-            type(body.results) == list && body.results.size() > 0 && type(body.results[0]) == map
+            type(body.results) == list && body.results.size() > 0 && type(body.results[0]) == map && type(body.results[0].url) == string && body.results[0].url != ""

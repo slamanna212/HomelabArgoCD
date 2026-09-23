@@ -12,16 +12,27 @@ spec:
         # Degoog is the search backend for both Hermes web_search (SEARXNG_URL)
         # and Firecrawl /v2/search (SEARXNG_ENDPOINT). The failure that matters
         # is NOT a connection error: Degoog answers HTTP 200 with
-        # {"query":"...","results":[],...} when every engine is suspended or
+        # {"query":"...","results":[],...} when its engines are suspended or
         # CAPTCHA'd, which is exactly how the SearXNG instance it replaced
-        # failed silently for weeks. The probe therefore asserts a non-empty,
+        # failed silently for weeks. The probe therefore asserts a usable
         # list-valued `results` array, not just a 2xx status.
         #
-        # probe_success alone is not enough: it only exists when the exporter
-        # completed a probe, so a missing Probe or a blackbox/DNS outage would
-        # make the expression empty and silently resolve the alert. Cover all
-        # three states: probe returned failure, scrape target down, and series
-        # entirely absent. (Same shape as firecrawl-alerts.)
+        # This is a SYNTHETIC check on one fixed query against a single-target
+        # Probe. It shows that one synthetic request succeeded; it does not prove
+        # arbitrary queries return results, and a query that legitimately
+        # matches nothing is indistinguishable from a broken one from the
+        # outside. `absent()` is also empty if ANY series matching the
+        # selector survives, so this covers a wholly-missing probe series -
+        # if this Probe ever gains more targets, per-target absence needs its
+        # own treatment.
+        #
+        # Coverage. A bare `probe_success{...} == 0` is blind: the series only
+        # exists once the exporter completes a probe, so a missing Probe or a
+        # blackbox/DNS outage yields an empty vector and the alert RESOLVES -
+        # precisely during a monitoring-path outage. All four states are
+        # covered below: probe returned failure, scrape target down, the `up`
+        # series absent entirely, and `up` present while `probe_success` is
+        # missing (absent(up) alone stays empty in that last case).
         - alert: DegoogSearchUnavailable
           expr: |
             probe_success{job="degoog-search"} == 0
@@ -29,9 +40,11 @@ spec:
             up{job="degoog-search"} == 0
             or
             absent(up{job="degoog-search"})
+            or
+            absent(probe_success{job="degoog-search"})
           for: 10m
           labels:
             severity: critical
           annotations:
             summary: "Degoog search probe is unavailable or failing"
-            description: "Degoog's SearXNG-compatible API is not returning a non-empty result set (job degoog-search): the probe has failed, been unreachable, or been absent for more than 10 minutes. An empty result set means every search engine is failing, which Hermes web_search (SEARXNG_URL) and Firecrawl /v2/search (SEARXNG_ENDPOINT) both surface as zero results rather than an error. Check the engines in the Degoog UI at http://10.1.20.207:4444/settings."
+            description: "Degoog's SearXNG-compatible API did not return the expected non-empty result shape (job degoog-search): the probe failed, was unreachable, or produced no probe series for more than 10 minutes. This is a synthetic check on a single fixed query, so an empty result set does not by itself establish the cause; it is the same shape Hermes web_search (SEARXNG_URL) and Firecrawl /v2/search (SEARXNG_ENDPOINT) would show for a broken backend and for a query that legitimately matches nothing. Check the engines in the Degoog UI at http://10.1.20.207:4444/settings."
