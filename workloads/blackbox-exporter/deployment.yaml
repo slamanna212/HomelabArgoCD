@@ -25,7 +25,7 @@ spec:
         # sha256 of the content mounted at /config/blackbox.yml, i.e. the
         # blackbox.yml block scalar value (de-indented, trailing newline included)
         # — NOT the indented YAML source.
-        configmap-checksum: "922a9025b683bb0ccd864ea615492b9cdef10a22c669c62b941478ca41e367f3"
+        configmap-checksum: "0377ebb655da642d5328b784ebeb93b8750241268a5a1444dc2876708278cc72"
     spec:
       automountServiceAccountToken: false
       containers:

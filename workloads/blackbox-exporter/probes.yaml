@@ -97,3 +97,29 @@ spec:
         - http://firecrawl-api.firecrawl.svc.cluster.local:3002/v0/health/readiness
       labels:
         probe_target: Firecrawl
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: degoog-search
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: degoog-search
+  # 300s, not 60s: each probe is a real search that fans out to bing/brave/
+  # duckduckgo upstream, and the failure mode this detects (every engine
+  # suspended) develops over hours. 288 probes/day is negligible load and stays
+  # far below Degoog's default long-window rate limit (200/3600s) if that is
+  # ever switched on. It also cannot trip the honeypot: that trap only guards
+  # the HTML route (c.req.path === "/search"), never /api/search.
+  interval: 300s
+  module: http_2xx_json_results_nonempty
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://degoog.degoog.svc.cluster.local:4444/api/search?q=kubernetes&format=json
+      labels:
+        probe_target: Degoog search
