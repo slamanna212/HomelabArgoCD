@@ -179,10 +179,12 @@ config:
   PROXY_SERVER: ""
   PROXY_USERNAME: ""
   # Firecrawl's own /v2/search. Without this it answers HTTP 200 with an EMPTY
-  # result set ({"success":true,"data":{}}), which is a silent no-op. Point it at
-  # the same self-hosted SearXNG Hermes uses for web_search; the base URL only —
-  # firecrawl appends /search and requests format=json.
-  SEARXNG_ENDPOINT: "http://10.1.10.85:8080"
+  # result set ({"success":true,"data":{}}), which is a silent no-op.
+  # Points at Degoog, which replaced the Unraid SearXNG container on 2026-09-23.
+  # The base URL ends in /api because firecrawl appends "/search" and requests
+  # format=json (apps/api/src/search/v2/searxng.ts), and Degoog serves the
+  # SearXNG-shaped document at /api/search when its `searxApiEnabled` toggle is on.
+  SEARXNG_ENDPOINT: "http://degoog.degoog.svc.cluster.local:4444/api"
   SEARXNG_ENGINES: ""
   SEARXNG_CATEGORIES: ""
   SELF_HOSTED_WEBHOOK_URL: ""

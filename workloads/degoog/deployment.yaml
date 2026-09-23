@@ -4,9 +4,14 @@ metadata:
   name: degoog
   namespace: degoog
 spec:
+  # Single replica on purpose. Degoog's on-disk state is a SQLite index plus the
+  # installed-extension tree on a ReadWriteOnce volume, so a second replica could not
+  # mount the same PVC. Valkey is deployed here for the shared cache and instant
+  # settings invalidation — not to enable horizontal scaling.
   replicas: 1
   strategy:
     type: Recreate
+    rollingUpdate: null
   selector:
     matchLabels:
       app: degoog
@@ -17,56 +22,211 @@ spec:
         app: degoog
         component: web
     spec:
+      # fsGroup is belt-and-braces rather than load-bearing: the image's ENTRYPOINT
+      # runs as root, chowns /app/data to PUID:PGID and then su-execs down to
+      # 1000:1000, which is how upstream takes ownership of a root-owned volume (and
+      # why runAsNonRoot must NOT be set here — it would break that chown).
+      # OnRootMismatch keeps kubelet from walking the whole volume on every start.
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: wait-for-valkey
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - until nc -z degoog-valkey 6379; do echo "waiting for valkey"; sleep 2; done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+
+        # A fresh Degoog ships ZERO search engines and returns nothing until at least
+        # one is installed — that is upstream's intent, not a fault. Since the
+        # consumer here is an agent whose search failures are silent, the instance is
+        # provisioned to a working state instead of waiting for someone to click
+        # through the setup wizard.
+        #
+        # Verified against degoog 0.26.0 source before writing this:
+        #   * src/server/extensions/engines/registry.ts — the engine registry scans
+        #     enginesDir() ($DEGOOG_DATA_DIR/engines) directly, so a populated engine
+        #     directory loads without any Store bookkeeping.
+        #   * src/server/utils/extension-id.ts + src/server/extensions/store/item-ops.ts
+        #     — an item at engines/<name> installed from <author>/<repo> gets the id
+        #     `<author>-<repo>-<name>-engine`, which is the form used below and in
+        #     default-engines.json.
+        #   * src/server/utils/settings-schema.ts + plugin-settings.ts::asBoolean —
+        #     `searxApiEnabled` accepts a JSON boolean true.
+        #   * Dockerfile — the release image has git, python3 and curl-impersonate.
+        - name: seed-engines
+          image: ghcr.io/degoog-org/degoog:0.26.0@sha256:69e28fe2dc8008981b0ea8b9270f6b5b482d107b8a3dfa71d8acdac37f4b77c0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -u
+              DATA=/app/data
+              ENG="$DATA/engines"
+              mkdir -p "$ENG"
+
+              # --- Instance settings, written ONCE ------------------------------
+              # searxApiEnabled makes GET /api/search honour ?format=json and answer
+              # with a SearXNG-shaped document. That is the seam both consumers in
+              # this repo use (Hermes' searxng provider and Firecrawl's SEARXNG_ENDPOINT).
+              # Left OFF by upstream; nothing about the browser UI changes when it is on.
+              # Existing file is never touched, so later settings changes persist.
+              if [ ! -f "$DATA/server-settings.json" ]; then
+                ID=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+                printf '{"wizard":false,"instanceId":"%s","settings":{"searxApiEnabled":true}}\n' "$ID" \
+                  > "$DATA/.server-settings.json.tmp" \
+                  && mv "$DATA/.server-settings.json.tmp" "$DATA/server-settings.json" \
+                  && echo "[seed] wrote server-settings.json (searxApiEnabled=true)"
+              fi
+
+              # --- Engines, seeded ONCE per pinned commit ------------------------
+              ENGINE_COMMIT=60d270874129e79c13ebab8cab608c3ab52c39f6
+              STAMP="$DATA/.engines-seeded-$ENGINE_COMMIT"
+              if [ ! -f "$STAMP" ]; then
+                rm -rf /tmp/ext /tmp/seed-staging
+                mkdir -p /tmp/ext /tmp/seed-staging
+                ok=1
+                if git init -q /tmp/ext \
+                   && git -C /tmp/ext remote add origin https://github.com/degoog-org/official-extensions.git; then
+                  if ! git -C /tmp/ext fetch -q --depth 1 origin "$ENGINE_COMMIT"; then
+                    echo "[seed] WARNING: pinned commit not fetchable, falling back to main"
+                    git -C /tmp/ext fetch -q --depth 1 origin main || ok=0
+                  fi
+                  git -C /tmp/ext checkout -q FETCH_HEAD || ok=0
+                else
+                  ok=0
+                fi
+
+                if [ "$ok" = "1" ]; then
+                  for e in bing brave duckduckgo wikipedia; do
+                    cp -a "/tmp/ext/engines/$e" "/tmp/seed-staging/degoog-org-official-extensions-$e" \
+                      || { echo "[seed] WARNING: could not stage engine $e"; ok=0; }
+                  done
+                fi
+
+                # Only publish into the live engines directory once all four staged
+                # cleanly, so a failed fetch can never leave a half-loaded engine.
+                if [ "$ok" = "1" ]; then
+                  for e in bing brave duckduckgo wikipedia; do
+                    rm -rf "$ENG/degoog-org-official-extensions-$e"
+                    mv "/tmp/seed-staging/degoog-org-official-extensions-$e" "$ENG/"
+                  done
+                  printf '%s\n' '{"degoog-org-official-extensions-bing-engine":true,"degoog-org-official-extensions-brave-engine":true,"degoog-org-official-extensions-duckduckgo-engine":true,"degoog-org-official-extensions-wikipedia-engine":true}' \
+                    > "$DATA/default-engines.json"
+                  touch "$STAMP"
+                  echo "[seed] seeded engines: bing, brave, duckduckgo, wikipedia"
+                else
+                  echo "[seed] WARNING: engine seeding skipped; install engines from Settings > Store instead"
+                fi
+                rm -rf /tmp/ext /tmp/seed-staging
+              fi
+
+              # The entrypoint only chowns /app/data itself, and anything this
+              # container created is root-owned.
+              chown -R 1000:1000 "$DATA" 2>/dev/null || true
+              echo "[seed] done"
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
       containers:
         - name: degoog
-          # Upstream entrypoint creates/chowns /app/data, then drops to uid 1000.
+          # Tag + multi-arch index digest: the tag keeps Renovate able to bump it, the
+          # digest guarantees the bytes cannot change underneath a re-pushed tag.
           image: ghcr.io/degoog-org/degoog:0.26.0@sha256:69e28fe2dc8008981b0ea8b9270f6b5b482d107b8a3dfa71d8acdac37f4b77c0
+          ports:
+            - name: http
+              containerPort: 4444
+              protocol: TCP
           env:
             - name: DEGOOG_PORT
               value: "4444"
+            # Must match the image defaults (1000:1000) and the ownership the
+            # entrypoint applies to /app/data.
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            # LAN-only instance reachable on the pinned MetalLB address: the cut-down
+            # public settings page and the /admin split are for internet-facing instances.
             - name: DEGOOG_PUBLIC_INSTANCE
               value: "false"
+            # The engines are seeded, so the first-run tour is suppressed — it exists to
+            # walk a human through installing engines, which is already done.
+            - name: DEGOOG_WIZARD
+              value: "false"
+            # Pins the URL Degoog publishes in /opensearch.xml and its sitemap instead of
+            # inferring it per request from the Host header. Change this line if the
+            # instance ever moves behind a hostname.
+            - name: DEGOOG_BASE_URL
+              value: "http://10.1.20.207:4444"
+            # Shared cache + cross-process invalidation bus. Without it every cache is
+            # per-process and in-memory.
             - name: DEGOOG_VALKEY_URL
-              value: redis://degoog-valkey:6379
+              value: "redis://degoog-valkey:6379"
+            # Neither consumer passes a language Degoog understands (Hermes sends none,
+            # Firecrawl sends `language=` which the SearXNG shape ignores), so pin the
+            # instance default instead of leaving engine defaults in play.
+            - name: DEGOOG_DEFAULT_SEARCH_LANGUAGE
+              value: "en"
+            - name: LOG_LEVEL
+              value: "info"
+            # Existing wiring from PR #128, deliberately untouched: this instance's
+            # own Key Vault key, not the hermes WebUI password. Degoog reads
+            # DEGOOG_SETTINGS_PASSWORDS from the environment only (no settings UI, no
+            # on-disk file), and an unlocked instance lets any visitor install
+            # extensions, which execute code in the pod — so it stays wired up.
             - name: DEGOOG_SETTINGS_PASSWORDS
               valueFrom:
                 secretKeyRef:
                   name: degoog-secrets
                   key: settings-passwords
-          ports:
-            - name: http
-              containerPort: 4444
-              protocol: TCP
           volumeMounts:
             - name: data
               mountPath: /app/data
+          # /readyz is the endpoint the image's own HEALTHCHECK uses.
           startupProbe:
             httpGet:
               path: /readyz
               port: http
+            initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
             failureThreshold: 24
           readinessProbe:
             httpGet:
               path: /readyz
               port: http
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /readyz
               port: http
             periodSeconds: 30
+            timeoutSeconds: 5
             failureThreshold: 3
           resources:
             requests:
-              cpu: 250m
               memory: 512Mi
+              cpu: 250m
             limits:
-              cpu: "2"
               memory: 2Gi
+              cpu: "2"
       volumes:
         - name: data
           persistentVolumeClaim:
