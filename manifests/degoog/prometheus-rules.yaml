@@ -1,0 +1,37 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: degoog-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: degoog.search
+      rules:
+        # Degoog is the search backend for both Hermes web_search (SEARXNG_URL)
+        # and Firecrawl /v2/search (SEARXNG_ENDPOINT). The failure that matters
+        # is NOT a connection error: Degoog answers HTTP 200 with
+        # {"query":"...","results":[],...} when every engine is suspended or
+        # CAPTCHA'd, which is exactly how the SearXNG instance it replaced
+        # failed silently for weeks. The probe therefore asserts a non-empty,
+        # list-valued `results` array, not just a 2xx status.
+        #
+        # probe_success alone is not enough: it only exists when the exporter
+        # completed a probe, so a missing Probe or a blackbox/DNS outage would
+        # make the expression empty and silently resolve the alert. Cover all
+        # three states: probe returned failure, scrape target down, and series
+        # entirely absent. (Same shape as firecrawl-alerts.)
+        - alert: DegoogSearchUnavailable
+          expr: |
+            probe_success{job="degoog-search"} == 0
+            or
+            up{job="degoog-search"} == 0
+            or
+            absent(up{job="degoog-search"})
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Degoog search probe is unavailable or failing"
+            description: "Degoog's SearXNG-compatible API is not returning a non-empty result set (job degoog-search): the probe has failed, been unreachable, or been absent for more than 10 minutes. An empty result set means every search engine is failing, which Hermes web_search (SEARXNG_URL) and Firecrawl /v2/search (SEARXNG_ENDPOINT) both surface as zero results rather than an error. Check the engines in the Degoog UI at http://10.1.20.207:4444/settings."

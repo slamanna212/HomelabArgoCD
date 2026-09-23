@@ -34,3 +34,27 @@ data:
           follow_redirects: true
           fail_if_body_not_matches_regexp:
             - '"status"\s*:\s*"ok"'
+      # HTTP 2xx AND a NON-EMPTY, LIST-VALUED JSON `results` array — the contract
+      # the real consumers depend on (Hermes web_search via SEARXNG_URL and
+      # Firecrawl /v2/search via SEARXNG_ENDPOINT both read results[].url).
+      # Degoog answers HTTP 200 with {"query":"...","results":[],...} when its
+      # engines all fail, which is exactly how the previous SearXNG backend
+      # failed silently for weeks; a plain http_2xx probe calls that healthy.
+      #
+      # CEL, deliberately not a regex: fail_if_body_not_matches_regexp is an
+      # UNANCHORED RE2 search over the raw bytes, so any 2xx body that merely
+      # contains the fragment — truncated JSON, an HTML error page quoting it —
+      # would satisfy it. The CEL path JSON-decodes the body first and fails the
+      # probe on a decode error, on a missing/null/wrong-typed field, and on a
+      # non-boolean result; `body` is the parsed document.
+      http_2xx_json_results_nonempty:
+        prober: http
+        timeout: 10s
+        http:
+          preferred_ip_protocol: ip4
+          valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+          follow_redirects: true
+          # Search responses are small; bound what the exporter will buffer.
+          body_size_limit: 2MB
+          fail_if_body_json_not_matches_cel: >-
+            type(body.results) == list && body.results.size() > 0 && type(body.results[0]) == map
