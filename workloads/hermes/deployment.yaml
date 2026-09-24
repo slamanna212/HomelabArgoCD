@@ -85,12 +85,6 @@ spec:
               # unrelated user settings.
               /opt/hermes/.venv/bin/python /memory-patches/apply_memory_config.py /data/home/config.yaml || exit 1
 
-              # Apply the cron post-script completion hook to the shared agent
-              # source copy (see hermes-cron-post-script-configmap.yaml).
-              # Patching agent-src here means the WebUI installs the patched
-              # agent at its next boot. Never fatal: a patch mismatch must not
-              # block pod startup.
-              python3 /patches/apply_patch.py /agent-src || echo "[init] WARNING: agent source patch failed (non-fatal)"
               # The memory sidecar fix is fail-closed: serving the old writer is
               # worse than refusing startup when the pinned source drifts.
               python3 /memory-patches/apply_patch.py /agent-src /memory-patches/agent-spec.json || exit 1
@@ -101,9 +95,6 @@ spec:
               mountPath: /agent-src
             - name: bootstrap
               mountPath: /bootstrap
-              readOnly: true
-            - name: patches
-              mountPath: /patches
               readOnly: true
             - name: memory-patches
               mountPath: /memory-patches
@@ -140,16 +131,17 @@ spec:
         # cannot tick scheduled jobs.
         - name: hermes-agent
           image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
-          # The upstream image does not include the cron post_script
-          # completion hook (implemented locally 2026-08-13). Wrap the stock
-          # entrypoint: apply the patch to the live /opt/hermes source first,
-          # then exec /init with the original arguments so s6-overlay remains
-          # PID 1 exactly as in the image default (see the Dockerfile's
-          # entrypoint-dispatch.sh). The patch step is never fatal.
+          # Wrap the stock entrypoint: apply the memory patch to the live
+          # /opt/hermes source first, then exec /init with the original arguments
+          # so s6-overlay remains PID 1 exactly as in the image default (see the
+          # Dockerfile's entrypoint-dispatch.sh). This patch is FAIL-CLOSED: a
+          # mismatch against the pinned source refuses startup rather than serving
+          # the unfixed writer. The local cron post_script patch was removed
+          # 2026-09-24 — its only consumer was a retired no-op, and it was the
+          # file that drifted on the last image bump.
           command: ["/bin/sh", "-ec"]
           args:
             - |
-              python3 /patches/apply_patch.py /opt/hermes || echo "[gateway] WARNING: agent source patch failed (non-fatal)"
               python3 /memory-patches/apply_patch.py /opt/hermes /memory-patches/agent-spec.json || exit 1
               exec /init /opt/hermes/docker/main-wrapper.sh gateway run
           env:
@@ -257,9 +249,6 @@ spec:
             # Chromium for the agent's browser tools needs more than the default 64Mi.
             - name: dshm
               mountPath: /dev/shm
-            - name: patches
-              mountPath: /patches
-              readOnly: true
             - name: memory-patches
               mountPath: /memory-patches
               readOnly: true
@@ -663,9 +652,6 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 1Gi
-        - name: patches
-          configMap:
-            name: hermes-cron-post-script
         - name: memory-patches
           configMap:
             name: hermes-memory-sidecar-fix
