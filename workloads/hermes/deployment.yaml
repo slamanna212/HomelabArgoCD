@@ -233,6 +233,13 @@ spec:
             # desktop Chrome that does not exist on this host.
             - name: BU_CDP_URL
               value: http://127.0.0.1:9222
+            # The image default is a single path (/opt/data), which made cron's
+            # write_file refuse every legitimate project-context write. That refusal
+            # is why the job carried a base64-through-terminal recipe — the pattern
+            # that reached Sam as an opaque approval prompt (2026-09-24 audit).
+            # Widen it to the paths this pod actually writes.
+            - name: HERMES_WRITE_SAFE_ROOT
+              value: /workspace:/tmp
           ports:
             - name: dashboard
               containerPort: 9119
@@ -445,6 +452,21 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: deepseek-api-key
+            # Parity with the gateway and the legacy WebUI (2026-09-24). Astra runs
+            # the agent IN-PROCESS, so without the patched source it reads the same
+            # config with different code: the memory-sidecar fix and the cron hook
+            # are applied to /agent-src by the prepare init container and are absent
+            # from the image's own /opt/hermes. Astra prepends this to sys.path at
+            # startup (astra/config.py::apply_hermes_src) and fails closed when the
+            # directory is missing, so a bad mount is a loud startup error.
+            - name: ASTRA_HERMES_SRC
+              value: /home/astra/hermes-agent
+            # Same browser contract as the other agent-running containers. All
+            # containers share the pod network namespace, so the chromium sidecar is
+            # reachable on loopback. Astra shipped without this and its sessions
+            # reported "chrome-not-running" while the sidecar was healthy.
+            - name: BU_CDP_URL
+              value: http://127.0.0.1:9222
           ports:
             - name: astra
               containerPort: 9090
@@ -456,6 +478,12 @@ spec:
             - name: data
               mountPath: /workspace
               subPath: workspace
+            # Read-only patched agent source (the prepare init container copies the
+            # pinned image into this emptyDir and chowns it to 1000). Astra runs as
+            # uid 1000 and needs read + traverse only.
+            - name: agent-src
+              mountPath: /home/astra/hermes-agent
+              readOnly: true
           # /api/health is Astra's unauthenticated liveness; it pings state.db.
           # Deliberately no long initial delay: unlike the WebUI there is no
           # dependency install at boot, so the process is serving in seconds.

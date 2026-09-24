@@ -115,7 +115,12 @@ data:
         raise SystemExit(main())
   apply_memory_config.py: |
     #!/usr/bin/env python3
-    """Idempotently enforce bounded OpenViking memory settings on the Hermes PVC."""
+    """Idempotently enforce the hot/cold memory contract on the Hermes PVC.
+
+    Hot layer = MEMORY.md/USER.md (always-on rules, injected verbatim, no retrieval).
+    Cold layer = OpenViking (everything retrievable). Re-asserted at every boot so a
+    runtime edit cannot silently diverge from the declared contract.
+    """
     from __future__ import annotations
     
     import os
@@ -127,16 +132,28 @@ data:
     from ruamel.yaml import YAML
     
     BOUNDED = {
-        "memory_enabled": False,
-        "user_profile_enabled": False,
+        # HOT layer ON (hot/cold contract, 2026-09-24). MEMORY.md/USER.md are the
+        # verbatim, zero-retrieval layer for always-on rules; OpenViking is the cold
+        # layer for everything retrievable. Disabled 2026-09-14 to bound injection
+        # while the recall-sidecar bug existed; that bug is fixed by the agent patch
+        # in this file, and leaving it off meant the files were still curated weekly
+        # and alerted on while being read by nobody.
+        # Verify with: grep -c 'MEMORY (your personal notes)' <request dump>.
+        "memory_enabled": True,
+        "user_profile_enabled": True,
         "provider": "openviking",
         "openviking": {
             "recall_limit": 3,
             "recall_score_threshold": 0.35,
             "recall_max_injected_chars": 1800,
-            "profile_token_budget": 800,
-            "recall_timeout_seconds": 2.0,
-            "recall_request_timeout_seconds": 1.5,
+            # 800 elided 19 of 25 profile bullets (head+tail truncation), and the
+            # elided middle is where the style/verification rules live; 3000 fits a
+            # curated profile whole. Plugin defaults are 6000 / 4.0 / 3.0.
+            "profile_token_budget": 3000,
+            # 1.5s sits below the store's real latency: 2 of 3 probes timed out and
+            # the turn silently received NO recall, logged at DEBUG only.
+            "recall_timeout_seconds": 4.0,
+            "recall_request_timeout_seconds": 3.0,
             "recall_full_read_limit": 1,
             "recall_prefer_abstract": True,
             "recall_resources": False,
