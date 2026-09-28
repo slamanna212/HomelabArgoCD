@@ -144,7 +144,11 @@ data:
         "provider": "openviking",
         "openviking": {
             "recall_limit": 3,
-            "recall_score_threshold": 0.35,
+            # 0.35 let events/ run-log chatlogs and .abstract/.overview stubs
+            # outrank the short preference files that answer the query (4 of the
+            # top 5 hits). 0.6 is a blunt stopgap until upstream offers an
+            # exclusion knob — requested in NousResearch/hermes-agent#121900.
+            "recall_score_threshold": 0.6,
             "recall_max_injected_chars": 1800,
             # 800 elided 19 of 25 profile bullets (head+tail truncation), and the
             # elided middle is where the style/verification rules live; 3000 fits a
