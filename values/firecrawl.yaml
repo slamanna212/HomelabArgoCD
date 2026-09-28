@@ -119,7 +119,7 @@ rabbitmq:
 
 image:
   repository: ghcr.io/firecrawl/firecrawl
-  tag: "2.11.337"
+  tag: "2.11.408"
   pullPolicy: IfNotPresent
   dockerSecretEnabled: false
 
