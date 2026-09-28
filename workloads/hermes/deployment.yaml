@@ -38,7 +38,7 @@ spec:
           # Digest-only refs are invisible to Renovate's regex manager; the
           # tag@digest form keeps this content-addressed across nodes and tag
           # re-pushes while renovate.json still tracks tag+digest updates.
-          image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+          image: nousresearch/hermes-agent:v2026.9.24@sha256:fca358f12efd65bfaaca05884166f15c0e2788375ca30d77061ac1ebc96452b7
           command: ["/bin/sh", "-ec"]
           args:
             - |
@@ -130,7 +130,7 @@ spec:
         # 8642. This is what keeps working while you are away — the WebUI alone
         # cannot tick scheduled jobs.
         - name: hermes-agent
-          image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+          image: nousresearch/hermes-agent:v2026.9.24@sha256:fca358f12efd65bfaaca05884166f15c0e2788375ca30d77061ac1ebc96452b7
           # Wrap the stock entrypoint: apply the memory patch to the live
           # /opt/hermes source first, then exec /init with the original arguments
           # so s6-overlay remains PID 1 exactly as in the image default (see the
@@ -272,7 +272,7 @@ spec:
           # The container then exits 1 in a crash loop. `uv pip install -e` first
           # appears in exp-v0.52.159, so no stable release currently works in a
           # two-container setup. Revisit once a stable release carries the fix.
-          image: ghcr.io/nesquena/hermes-webui:0.52.264
+          image: ghcr.io/nesquena/hermes-webui:0.52.379
           # Run the upstream UID/setup sequence through a Git-managed wrapper.
           # The wrapper inserts the WebUI source patch after /apptoo is copied
           # into /app and before server.py starts.
