@@ -80,3 +80,8 @@ data:
           - /opt/hermes-todoist/todoist_mcp.py
         connect_timeout: 60
         enabled: true
+      discord_sender:
+        url: http://hermes-discord-sender.hermes.svc.cluster.local:8080/mcp
+        timeout: 45
+        connect_timeout: 10
+        enabled: true
