@@ -1,0 +1,234 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-discord-sender
+  namespace: hermes
+data:
+  server.py: |
+    from __future__ import annotations
+
+    import asyncio
+    import json
+    import os
+    import re
+    import subprocess
+    import time
+    import urllib.error
+    import urllib.request
+
+    from mcp.server import Server
+    from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
+
+    CHANNEL_ID = "1536769565340598312"  # #hermes-main
+    USER_ID = "123546381628604420"
+    HERMES_BIN = "/opt/hermes/bin/hermes"
+    MAX_CHARS = 500
+    MIN_INTERVAL_SECONDS = 5
+    _last_send = 0.0
+    _send_lock = asyncio.Lock()
+
+    def _safe_user_text(text: str) -> str:
+        text = re.sub(r"@(everyone|here)\b", lambda m: "@\u200b" + m.group(1), text, flags=re.IGNORECASE)
+        return text.replace("<@", "&lt;@")
+
+    def _text(text: str, *, error: bool = False) -> CallToolResult:
+        return CallToolResult(content=[TextContent(type="text", text=text)], isError=error)
+
+    async def _list_tools(_ctx, _params) -> ListToolsResult:
+        return ListToolsResult(tools=[Tool(
+            name="send_discord_mention",
+            description=(
+                "Send a one-off message to Sam in Discord #hermes-main. The tool automatically "
+                "mentions Sam; destination and mention target are fixed. Use only when Sam asks "
+                "for a Discord ping or genuinely needs attention."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {"message": {"type": "string", "description": "Short message body; max 500 characters. Do not include mention syntax."}},
+                "required": ["message"],
+                "additionalProperties": False,
+            },
+        )])
+
+    def _send_and_verify(body: str) -> str:
+        token = os.environ["DISCORD_BOT_TOKEN"]
+        env = {
+            "DISCORD_BOT_TOKEN": token,
+            "HERMES_HOME": "/tmp/hermes-home",
+            "HOME": "/tmp",
+            "PATH": "/opt/hermes/.venv/bin:/opt/hermes/bin:/usr/bin:/bin",
+            "LANG": "C.UTF-8",
+        }
+        result = subprocess.run(
+            [HERMES_BIN, "send", "--to", f"discord:{CHANNEL_ID}", "--json", body],
+            check=False, capture_output=True, text=True, timeout=20, env=env,
+        )
+        if result.returncode != 0:
+            error_text = (result.stderr or result.stdout or "send command failed").strip()
+            if token:
+                error_text = error_text.replace(token, "[redacted]")
+            raise RuntimeError(error_text[:500])
+        try:
+            receipt = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("send returned no parseable receipt") from exc
+        message_id = receipt.get("message_id") or receipt.get("id")
+        if not message_id:
+            raise RuntimeError("send returned no message id")
+
+        req = urllib.request.Request(
+            f"https://discord.com/api/v10/channels/{CHANNEL_ID}/messages/{message_id}",
+            headers={"Authorization": f"Bot {token}", "User-Agent": "HermesDiscordSender/1.0"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as response:
+                verified = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+            raise RuntimeError(f"Discord accepted the send (message id {message_id}); read-back failed") from exc
+        if verified.get("id") != str(message_id) or f"<@{USER_ID}>" not in verified.get("content", ""):
+            raise RuntimeError("Discord accepted the send but read-back verification did not match")
+        return f"Discord mention delivered and verified in #hermes-main (message id {message_id})."
+
+    async def _call_tool(_ctx, params) -> CallToolResult:
+        global _last_send
+        if params.name != "send_discord_mention":
+            return _text("Unknown tool", error=True)
+        message = (params.arguments or {}).get("message")
+        if not isinstance(message, str):
+            return _text("message must be text", error=True)
+        message = message.strip()
+        if not message:
+            return _text("message cannot be empty", error=True)
+        if len(message) > MAX_CHARS:
+            return _text(f"message exceeds {MAX_CHARS} characters", error=True)
+        async with _send_lock:
+            remaining = MIN_INTERVAL_SECONDS - (time.monotonic() - _last_send)
+            if remaining > 0:
+                await asyncio.sleep(remaining)
+            body = f"<@{USER_ID}> {_safe_user_text(message)}"
+            try:
+                response = await asyncio.to_thread(_send_and_verify, body)
+            except subprocess.TimeoutExpired:
+                return _text("Discord send timed out; delivery is unknown. Do not retry automatically.", error=True)
+            except Exception as exc:
+                return _text(f"Discord send failed: {exc}", error=True)
+            _last_send = time.monotonic()
+            return _text(response)
+
+    server = Server("hermes-discord-sender", version="1.0.0", on_list_tools=_list_tools, on_call_tool=_call_tool)
+    app = server.streamable_http_app(streamable_http_path="/mcp", json_response=True, stateless_http=True, host="0.0.0.0")
+    if __name__ == "__main__":
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes-discord-sender
+  namespace: hermes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hermes-discord-sender
+  template:
+    metadata:
+      labels:
+        app: hermes-discord-sender
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: sender
+          image: nousresearch/hermes-agent:v2026.9.24@sha256:fca358f12efd65bfaaca05884166f15c0e2788375ca30d77061ac1ebc96452b7
+          imagePullPolicy: IfNotPresent
+          command: ["/opt/hermes/.venv/bin/python", "/discord-send/server.py"]
+          env:
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: discord-bot-token
+            - name: HOME
+              value: /tmp
+            - name: HERMES_HOME
+              value: /tmp/hermes-home
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: server
+              mountPath: /discord-send
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: server
+          configMap:
+            name: hermes-discord-sender
+            defaultMode: 0444
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-discord-sender
+  namespace: hermes
+spec:
+  type: ClusterIP
+  selector:
+    app: hermes-discord-sender
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hermes-discord-sender
+  namespace: hermes
+spec:
+  podSelector:
+    matchLabels:
+      app: hermes-discord-sender
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: hermes
+      ports:
+        - protocol: TCP
+          port: 8080
