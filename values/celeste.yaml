@@ -3,7 +3,7 @@
 # Infrastructure only: no guild IDs, panel hostname or radio URLs (those live in the database).
 
 image:
-  tag: "0.1.6" # explicit pin; "" follows the chart appVersion, which ArgoCD cannot see change under a re-published chart tag
+  tag: "0.1.7" # explicit pin; "" follows the chart appVersion, which ArgoCD cannot see change under a re-published chart tag
   pullSecret:
     enabled: false # GHCR packages are public
 
