@@ -73,6 +73,16 @@
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the Celeste image tag in helm values (kept in sync with the chart targetRevision in apps/celeste.yaml)",
+      "managerFilePatterns": ["/^values\\/celeste\\.yaml$/"],
+      "matchStrings": ["tag: \"?(?<currentValue>[0-9.]+)\"? # explicit pin"],
+      "depNameTemplate": "slamanna212/celeste",
+      "registryUrlTemplate": "https://ghcr.io",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [
@@ -104,6 +114,12 @@
       "groupName": "hermes agent",
       "allowedVersions": "/^v?\\d+\\.\\d+\\.\\d+$/",
       "schedule": ["before 4am on monday"]
+    },
+    {
+      "description": "Celeste publishes floating 0.1/latest/sha-* tags next to the real releases; only track stable X.Y.Z",
+      "matchPackageNames": ["slamanna212/celeste"],
+      "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/",
+      "ignoreUnstable": true
     },
     {
       "description": "Group the Plex monitoring exporter images together",
