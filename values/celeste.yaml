@@ -1,0 +1,45 @@
+# Celeste overlay for HomelabArgoCD (values/celeste.yaml).
+# Everything not listed here uses the chart default (upstream charts/celeste/values.yaml).
+# Infrastructure only: no guild IDs, panel hostname or radio URLs (those live in the database).
+
+image:
+  tag: "" # empty = chart appVersion (pinned by targetRevision in apps/celeste.yaml)
+  pullSecret:
+    enabled: false # GHCR packages are public
+
+youtube:
+  backend: ytdlp # ytdlp | plugin (plugin needs celeste-ytcipher-password in AKV)
+  plugin:
+    version: "1.18.2"
+    oauth:
+      enabled: false
+    poToken:
+      enabled: false
+
+resolver:
+  replicas: 2
+  bgutilVersion: "2.0.2" # must equal the bgutil-ytdlp-pot-provider pin in apps/resolver
+  cookies:
+    enabled: false # true mounts AKV celeste-ytdlp-cookies (burner Google account)
+
+postgres:
+  instances: 1 # Longhorn already replicates the volume
+  storage:
+    size: 5Gi
+    storageClass: longhorn
+  k8up:
+    enabled: true # annotations only; the Schedule lives in manifests/k8up/celeste-backup.yaml
+
+externalSecrets:
+  storeName: azure-keyvault
+  storeKind: ClusterSecretStore
+
+networkPolicy:
+  enabled: true
+  tunnelNamespace: cloudflared # the cluster's existing cloudflared namespace
+  monitoringNamespace: monitoring
+  cnpgOperatorNamespace: cnpg-system
+
+metrics:
+  serviceMonitor:
+    enabled: true # kube-prometheus-stack selects ServiceMonitors in every namespace with no extra labels
