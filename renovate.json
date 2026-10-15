@@ -77,6 +77,11 @@
   ],
   "packageRules": [
     {
+      "description": "Hold the CloudNativePG chart on 0.29.x (operator 1.30.x). In-tree barmanObjectStore is REMOVED in CloudNativePG 1.31.0, so an auto-bump past this would silently break database backups; the replacement Barman Cloud plugin requires cert-manager, which this cluster deliberately does not run. Revisit as a deliberate change, not a dependency PR.",
+      "matchPackageNames": ["cloudnative-pg"],
+      "allowedVersions": "/^0\\.29\\./"
+    },
+    {
       "description": "Only track stable semver releases for dispatcharr, and prioritize it so it isn't perpetually rate-limited out by the backlog of other pending PRs",
       "matchPackageNames": ["dispatcharr/dispatcharr"],
       "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/",

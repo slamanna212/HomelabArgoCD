@@ -1,0 +1,32 @@
+# CloudNativePG operator — HomelabArgoCD overlay.
+#
+# The operator image is pinned by the chart itself: image.tag is deliberately left
+# empty so it resolves to the chart's appVersion (1.30.1 for chart 0.29.1), which is
+# pinned by targetRevision in apps/cnpg.yaml and tracked by Renovate's argocd manager.
+# Do not set image.tag here — it would pin a version Renovate cannot see.
+replicaCount: 1
+
+# CRDs are templated by the chart (not dropped in crds/), so ArgoCD upgrades them on
+# every sync. They are large (clusters.postgresql.cnpg.io ~500 KB, poolers ~750 KB),
+# which is why the Application must use ServerSideApply=true.
+crds:
+  create: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+# The PodMonitor is scraped by the existing kube-prometheus-stack (its
+# podMonitorSelector is unrestricted and podMonitorNamespaceSelector is empty, so no
+# release labels are needed). The dashboard ships with the chart itself — with
+# namespace set it lands in monitoring carrying the grafana_dashboard=1 label that the
+# Grafana sidecar (searchNamespace: ALL) watches for, so it stays versioned with the
+# operator instead of being a hand-copied JSON blob.
+monitoring:
+  podMonitorEnabled: true
+  grafanaDashboard:
+    create: true
+    namespace: monitoring
