@@ -3,7 +3,7 @@
 # Infrastructure only: no guild IDs, panel hostname or radio URLs (those live in the database).
 
 image:
-  tag: "" # empty = chart appVersion (pinned by targetRevision in apps/celeste.yaml)
+  tag: "0.1.3" # explicit pin; "" follows the chart appVersion, which ArgoCD cannot see change under a re-published chart tag
   pullSecret:
     enabled: false # GHCR packages are public
 
