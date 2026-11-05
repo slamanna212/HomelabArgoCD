@@ -1,0 +1,47 @@
+# OpenTodo — self-hosted task manager (ghcr.io/opentodoapp/opentodo).
+# Chart version follows the app release: chart 0.22.0 runs image 0.22.0.
+# Deployed as a LoadBalancer on the MetalLB homelab-pool (10.1.20.200-250, L2),
+# straight to the container's :8080 — no ingress, same shape as dispatcharr.
+
+image:
+  repository: ghcr.io/opentodoapp/opentodo
+  tag: "0.22.0"
+  pullPolicy: IfNotPresent
+
+env:
+  # Plain http on the LAN: keep this EMPTY. An https:// value makes the session
+  # cookie Secure-only, and sign-in then silently fails over http.
+  # (Installing the PWA, offline sync, push and passkeys need https — later, via
+  # the tunnel or an ingress.)
+  OPENTODO_BASE_URL: ""
+  # Owner-only instance: new accounts come from an invitation, not open sign-up.
+  OPENTODO_ALLOW_SIGNUP: "false"
+  OPENTODO_SESSION_DAYS: "90"
+
+# ArgoCD renders the chart without helm's `lookup`, so a generated setup token is
+# regenerated on every sync. The token therefore comes from Key Vault through
+# manifests/opentodo/setup-token.yaml (ExternalSecret -> Secret opentodo-setup-token).
+setupToken:
+  generate: false
+  existingSecret: opentodo-setup-token
+
+service:
+  type: LoadBalancer
+  port: 8080
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 10.1.20.204
+    kube-vip.io/ignore: "true"
+
+persistence:
+  enabled: true
+  storageClass: longhorn
+  size: 5Gi
+  keep: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
