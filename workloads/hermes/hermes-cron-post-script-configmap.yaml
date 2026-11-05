@@ -15,11 +15,13 @@ metadata:
       at pod start (initContainer -> /agent-src for the WebUI install,
       gateway command wrapper -> /opt/hermes for the live scheduler).
       Removal: delete this ConfigMap and the deployment wiring once the
-      upstream image includes the feature.
+      upstream image includes the feature and the browser login override
+      is no longer needed. The browser override permits explicitly authorized
+      credentials instead of requiring a user handoff at every login wall.
 data:
   apply_patch.py: |
     #!/usr/bin/env python3
-    """Apply the Hermes cron post-script completion hook to an agent source tree.
+    """Apply the Hermes cron completion hook and browser login instructions.
 
     Usage: python3 apply_patch.py <source_root>
 
@@ -114,6 +116,11 @@ data:
     {
       "hunks": [
         {
+          "old": "    \"tab. Login walls: stop and ask the user; never guess credentials.\"",
+          "new": "    \"tab. Login walls: use credentials the user has explicitly authorized for \"\n    \"this site to complete the requested login. Ask the user only when credentials \"\n    \"or required MFA are unavailable; never guess credentials.\"",
+          "path": "tools/browser_use_cli.py"
+        },
+        {
           "new": "def _run_post_script(\n    script_path: str,\n    final_response: str,\n    metadata: dict[str, str],\n    workdir: Optional[str] = None,\n) -> tuple[bool, str]:\n    \"\"\"Run a post-completion cron hook with the final response on stdin.\n\n    Post scripts use the same containment and sanitized environment contract as\n    pre-run scripts, but are invoked only after an agent produced a non-silent\n    successful response. They receive the response on stdin and a deliberately\n    small, non-secret metadata environment. Their stdout is diagnostic only;\n    a non-zero exit makes the cron delivery outcome fail.\n    \"\"\"\n    scripts_dir = _get_hermes_home() / \"scripts\"\n    scripts_dir.mkdir(parents=True, exist_ok=True)\n    scripts_dir_resolved = scripts_dir.resolve()\n    try:\n        raw = Path(script_path).expanduser()\n        path = raw.resolve() if raw.is_absolute() else (scripts_dir / raw).resolve()\n        path.relative_to(scripts_dir_resolved)\n    except (ValueError, RuntimeError, OSError):\n        return False, f\"Blocked: post script resolves outside the scripts directory: {script_path!r}\"\n    if not path.is_file():\n        return False, f\"Post script not found: {path}\"\n\n    suffix = path.suffix.lower()\n    if suffix in {\".sh\", \".bash\"}:\n        bash = shutil.which(\"bash\") or (\"/bin/bash\" if os.path.isfile(\"/bin/bash\") else None)\n        if bash is None:\n            return False, f\"Cannot run .sh/.bash post script {path.name!r}: bash not found on PATH.\"\n        argv, env_overlay = [bash, str(path)], {}\n    else:\n        python_exe, env_overlay = _windows_cron_python_invocation(sys.executable)\n        argv = [python_exe, str(path)]\n\n    try:\n        from tools.environments.local import build_subprocess_env\n        env = build_subprocess_env()\n        env.update(env_overlay)\n        env.update({str(k): str(v) for k, v in metadata.items()})\n        result = subprocess.run(\n            argv,\n            input=final_response,\n            capture_output=True,\n            text=True,\n            timeout=_get_script_timeout(),\n            cwd=workdir or str(path.parent),\n            env=env,\n        )\n        stdout = (result.stdout or \"\").strip()\n        stderr = (result.stderr or \"\").strip()\n        try:\n            from agent.redact import redact_sensitive_text\n            stdout, stderr = redact_sensitive_text(stdout), redact_sensitive_text(stderr)\n        except Exception:\n            stdout, stderr = \"[REDACTED - redaction failed]\", \"[REDACTED - redaction failed]\"\n        if result.returncode:\n            detail = stderr or stdout or \"no output\"\n            return False, f\"Post script exited with code {result.returncode}: {detail}\"\n        return True, stdout\n    except subprocess.TimeoutExpired:\n        return False, f\"Post script timed out after {_get_script_timeout()}s: {path}\"\n    except Exception as exc:\n        return False, f\"Post script execution failed: {exc}\"\n\ndef _run_job_script_with_claim_heartbeat(\n",
           "old": "def _run_job_script_with_claim_heartbeat(\n",
           "path": "cron/scheduler.py"
@@ -174,5 +181,5 @@ data:
           "path": "tools/cronjob_tools.py"
         }
       ],
-      "version": 2
+      "version": 3
     }
