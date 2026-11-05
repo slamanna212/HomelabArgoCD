@@ -1,0 +1,144 @@
+# OpenTodo UI patch — hide the issue-origin chip on narrow screens.
+#
+# Why a proxy and not a patch of the app: the web bundle is compiled into the Go
+# binary (internal/web uses embed.FS), so there is no directory to mount a file
+# over. Nothing else in the chart can change the SPA.
+#
+# So a tiny nginx sits in front of the chart's ClusterIP Service, proxies
+# everything untouched, and appends one <style> block to the HTML response. The
+# app's own CSP allows it (style-src 'self' 'unsafe-inline').
+#
+# The rule keys on the row's own data-origin attribute, which OriginChip.tsx
+# renders on every origin link (web/src/app/OriginChip.tsx). If upstream renames
+# that attribute the patch goes quiet rather than breaking anything.
+#
+# Undo: delete this file, point values/opentodo.yaml service.type back to
+# LoadBalancer and restore the metallb annotations there. One commit, no data.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opentodo-webpatch
+  namespace: opentodo
+data:
+  nginx.conf: |
+    worker_processes 1;
+    error_log /dev/stderr warn;
+    pid /tmp/nginx.pid;
+    events { worker_connections 256; }
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+      access_log /dev/stdout;
+      client_body_temp_path /tmp/client_body;
+      proxy_temp_path /tmp/proxy;
+      fastcgi_temp_path /tmp/fastcgi;
+      uwsgi_temp_path /tmp/uwsgi;
+      scgi_temp_path /tmp/scgi;
+      sendfile on;
+      server {
+        listen 8080;
+        server_name _;
+        # Compressed HTML can't be rewritten, so ask the app for it uncompressed.
+        # The app's index.html is ~1.1 KB, so this costs nothing.
+        proxy_set_header Accept-Encoding "";
+        location / {
+          proxy_pass http://opentodo.opentodo.svc.cluster.local:8080;
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          # Streaming sync must not be buffered.
+          proxy_buffering off;
+          proxy_read_timeout 3600s;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection $connection_upgrade;
+          sub_filter_once on;
+          sub_filter_types text/html;
+          sub_filter '</head>' '<style id="ot-webpatch">@media (max-width:639px){[data-origin]{display:none!important}}</style></head>';
+        }
+      }
+      map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opentodo-webpatch
+  namespace: opentodo
+  labels:
+    app: opentodo-webpatch
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: opentodo-webpatch
+  template:
+    metadata:
+      labels:
+        app: opentodo-webpatch
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+      volumes:
+        - name: conf
+          configMap:
+            name: opentodo-webpatch
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opentodo-webpatch
+  namespace: opentodo
+  labels:
+    app: opentodo-webpatch
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 10.1.20.204
+    kube-vip.io/ignore: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: opentodo-webpatch
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

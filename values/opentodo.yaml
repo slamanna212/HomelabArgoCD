@@ -29,11 +29,12 @@ setupToken:
   existingSecret: ""
 
 service:
-  type: LoadBalancer
+  # ClusterIP, not LoadBalancer: the MetalLB address 10.1.20.204 now belongs to
+  # the nginx webpatcher in workloads/opentodo/webpatch.yaml, which proxies here
+  # and injects the mobile row patch. Restore type/annotations here to remove it.
+  type: ClusterIP
   port: 8080
-  annotations:
-    metallb.universe.tf/loadBalancerIPs: 10.1.20.204
-    kube-vip.io/ignore: "true"
+  annotations: {}
 
 persistence:
   enabled: true
