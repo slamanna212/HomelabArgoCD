@@ -69,7 +69,7 @@ jobs:
           push: true
           platforms: linux/amd64
           provenance: false
-          tags: ghcr.io/${{ github.repository }}/opentodo:${{ inputs.upstream_tag }}-sam.${{ inputs.revision }}
+          tags: ghcr.io/slamanna212/homelabargocd/opentodo:${{ inputs.upstream_tag }}-sam.${{ inputs.revision }}
           build-args: |
             VERSION=${{ inputs.upstream_tag }}-sam.${{ inputs.revision }}
           cache-from: type=gha
