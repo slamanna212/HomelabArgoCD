@@ -1,0 +1,33 @@
+# OpenTodo's first-run setup token.
+#
+# The chart can generate this itself, but it does so with helm's `lookup`: GitOps
+# renderers have no cluster access, so a generated token would be a new random
+# value on every sync and the number Sam reads from the screen would change
+# underneath him. Hence setupToken.generate=false in values/opentodo.yaml and this
+# ExternalSecret as setupToken.existingSecret.
+#
+# Only matters until the owner account exists: after that OpenTodo ignores it and
+# sign-up is closed (OPENTODO_ALLOW_SIGNUP=false). Rotating the Key Vault value is
+# therefore harmless, and the Secret is kept on delete so a chart prune cannot
+# strand a half-initialised instance.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opentodo-setup-token
+  namespace: opentodo
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: azure-keyvault
+    kind: ClusterSecretStore
+  target:
+    name: opentodo-setup-token
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  data:
+    - secretKey: setup-token
+      remoteRef:
+        key: opentodo-setup-token
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None
