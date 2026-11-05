@@ -23,7 +23,10 @@ env:
 # manifests/opentodo/setup-token.yaml (ExternalSecret -> Secret opentodo-setup-token).
 setupToken:
   generate: false
-  existingSecret: opentodo-setup-token
+  # Not wired directly: the chart's secretKeyRef is mandatory, so a missing Secret
+  # leaves the pod in CreateContainerConfigError. The token is injected through
+  # extraEnv as an OPTIONAL ref instead (below).
+  existingSecret: ""
 
 service:
   type: LoadBalancer
@@ -37,6 +40,18 @@ persistence:
   storageClass: longhorn
   size: 5Gi
   keep: true
+
+# The first-run gate, if Key Vault has it. `optional: true` means the pod starts
+# whether or not the Secret exists: with the key present the setup screen asks for
+# it, without it the first visitor claims the instance. (Env is read at container
+# start, so a Secret created later needs a pod restart to take effect.)
+extraEnv:
+  - name: OPENTODO_SETUP_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: opentodo-setup-token
+        key: setup-token
+        optional: true
 
 resources:
   requests:
