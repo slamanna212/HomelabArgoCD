@@ -15,9 +15,21 @@ spec:
       allowScheduling: true
       storageReserved: 44462050099
       tags: []
+    # 2026-09-17: draining this disk. /dev/sdb (confirmed on the node with
+    # `findmnt -no SOURCE /var/lib/longhorn-sata`) shows sustained write-latency
+    # degradation: /proc/diskstats sampling over 30s gave ~114 writes against
+    # 285,673ms cumulative write time (~2.5s avg), 6-22 I/Os permanently in
+    # flight, queue never drains. No SMART data (QEMU virtual disk) and no
+    # kernel I/O errors yet - pre-failure, not hard failure.
+    #
+    # Replicas evict to the sata-tagged disks on work03v/work04v. Revert both
+    # fields to `allowScheduling: true` (drop evictionRequested) once the disk
+    # is replaced, or ArgoCD selfHeal keeps it permanently in eviction and
+    # replicas can never return.
     longhorn-sata:
       path: /var/lib/longhorn-sata
-      allowScheduling: true
+      allowScheduling: false
+      evictionRequested: true
       storageReserved: 10737418240
       tags: ["sata"]
 ---

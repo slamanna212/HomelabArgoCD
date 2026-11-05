@@ -219,13 +219,20 @@ silently dropped. If a future port gets added to this pod, add it there too.
 Nous Research's self-hosted agent (`workloads/hermes/`), reached on **10.1.20.205:8787** — its own
 MetalLB IP, deliberately *not* behind Traefik. LAN/VPN access only; no tunnel, no public exposure.
 
-**One pod, two containers, one PVC.** This mirrors upstream's `docker-compose.two-container.yml`:
+**One pod, three containers, one PVC.** The first two mirror upstream's
+`docker-compose.two-container.yml`; the third is ours:
 
 - `hermes-agent` (`gateway run`) — Discord bot, scheduled/cron jobs, agent API on `8642`. This is
   the half that keeps working while you're away; the WebUI alone cannot tick scheduled jobs.
 - `hermes-webui` (port `8787`) — the browser UI, and the backend the **Hermex** iPhone app talks
   to. Hermex does *not* speak to the agent directly; it drives hermes-webui, a separate
   third-party project (`nesquena/hermes-webui`), which is why that container exists at all.
+- `astra` (port `9090`) — Sam's own Hermes web UI (`slamanna212/Astra`), a **second** UI
+  option alongside `hermes-webui`, not a replacement. It mounts the same `HERMES_HOME` and
+  runs the agent in-process, exactly like `hermes-webui`, so it has no storage of its own —
+  it is only in this pod because Longhorn is ReadWriteOnce and the home must be shared.
+  Pinned to a `sha-<commit>` tag on purpose (Astra publishes no version tags), so a bump is
+  a one-line manifest change after the new `Container` run succeeds.
 
 They share `HERMES_HOME` (PVC subPath `home`) — that shared directory is the only reason the two
 see the same sessions, memory and skills. They are in one pod rather than two Deployments because
@@ -270,15 +277,19 @@ which **does not exist** on Docker Hub — real tags are calendar-versioned (`v2
 use that chart, but don't trust `0.8.x` version numbers from its docs either. `hermes-webui` ships
 hundreds of patch releases, so Renovate batches both images weekly as the `hermes agent` group.
 
-**Access control is one password.** Anything on the LAN can hit 10.1.20.205:8787 directly, so
-`HERMES_WEBUI_PASSWORD` is the only thing in front of an agent that has a shell, a browser, and
-your OpenRouter key. Discord access is separately gated by `DISCORD_ALLOWED_USERS` with
+**Access control is one password per UI.** Anything on the LAN can hit 10.1.20.205:8787 or
+`:9090` directly, so `HERMES_WEBUI_PASSWORD` and Astra's own login (an scrypt hash in Key
+Vault, `astra-password-hash`) are the only things in front of an agent that has a shell, a
+browser, and your OpenRouter key. Astra's interactive terminal stays at its secure default
+(`ASTRA_TERMINAL_ENABLED` unset = off). Discord access is separately gated by
+`DISCORD_ALLOWED_USERS` with
 `GATEWAY_ALLOW_ALL_USERS=false`; an empty allowlist locks everyone out rather than letting
 everyone in. `browser.allow_private_urls` is `false` to keep the agent's browser off internal
 admin UIs — this pod sits on the cluster network with reach into the rest of the LAN.
 
 Secrets (`hermes-secrets`) come from Azure Key Vault: `hermes-openrouter-api-key`,
-`hermes-discord-bot-token`, `hermes-webui-password`.
+`hermes-discord-bot-token`, `hermes-webui-password`, `hermes-astra-password-hash`,
+`hermes-astra-session-secret`.
 
 ## Traefik Entrypoints & UI Access
 

@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: degoog-valkey
+  namespace: degoog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: degoog
+      component: valkey
+  template:
+    metadata:
+      labels:
+        app: degoog
+        component: valkey
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: valkey
+          image: valkey/valkey:8.1.8-alpine
+          command: ["valkey-server", "--save", "", "--appendonly", "no", "--maxmemory", "384mb", "--maxmemory-policy", "allkeys-lru"]
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: degoog-valkey
+  namespace: degoog
+spec:
+  type: ClusterIP
+  selector:
+    app: degoog
+    component: valkey
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      protocol: TCP

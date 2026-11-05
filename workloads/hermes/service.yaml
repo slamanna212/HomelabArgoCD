@@ -19,3 +19,16 @@ spec:
       port: 9119
       targetPort: dashboard
       protocol: TCP
+    # OpenAI-compatible agent API (Continue, Open WebUI, ...). Numeric
+    # targetPort because the gateway container does not declare an 8642
+    # containerPort, so there is no named port to reference.
+    - name: api
+      port: 8642
+      targetPort: 8642
+      protocol: TCP
+    # Astra (slamanna212/Astra) — the second web UI, in the same pod as the port
+    # above and therefore on the same MetalLB IP.
+    - name: astra
+      port: 9090
+      targetPort: astra
+      protocol: TCP

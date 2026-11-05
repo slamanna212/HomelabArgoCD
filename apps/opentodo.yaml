@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opentodo
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    # Chart 0.22.0 = OpenTodo 0.22.0, published as a public OCI artifact.
+    # Scheme-less OCI repoURL: ArgoCD resolves it anonymously, no repo registration.
+    - repoURL: ghcr.io/opentodoapp/charts
+      chart: opentodo
+      targetRevision: "0.22.0"
+      helm:
+        valueFiles:
+          - $values/values/opentodo.yaml
+    - repoURL: https://github.com/slamanna212/HomelabArgoCD.git
+      targetRevision: main
+      ref: values
+    # The setup token Secret is not chart-managed (Argo renders without helm lookup).
+    - repoURL: https://github.com/slamanna212/HomelabArgoCD.git
+      targetRevision: main
+      path: workloads/opentodo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opentodo
+  ignoreDifferences:
+    # ESO persists defaulted remoteRef fields and the force-sync annotation is
+    # operational state, not desired config (same rule as apps/dispatcharr.yaml).
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /metadata/finalizers
+        - /spec/refreshInterval
+      jqPathExpressions:
+        - .spec.data[].remoteRef.nullBytePolicy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

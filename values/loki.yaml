@@ -43,14 +43,17 @@ singleBinary:
     enabled: true
     storageClass: longhorn-sata
     size: 20Gi
-  # Mount the VPN alert rules ConfigMap into the ruler's local storage dir.
+  # Mount the Loki alert rules ConfigMap into the ruler's local storage dir.
   # auth_enabled=false => tenant "fake", so rules must live at /rules/fake/.
+  # Repointed 2026-09-21: the old loki-vpn-rules ConfigMap was deleted with
+  # 1cffad0 (UniFi VPN Loki alerts retired for metric-based rules), so every
+  # loki-0 pod restart failed at volume setup with "configmap not found".
   extraVolumes:
-    - name: vpn-rules
+    - name: gluetun-rules
       configMap:
-        name: loki-vpn-rules
+        name: loki-gluetun-rules
   extraVolumeMounts:
-    - name: vpn-rules
+    - name: gluetun-rules
       mountPath: /rules/fake
 
 # Disable distributed-mode components

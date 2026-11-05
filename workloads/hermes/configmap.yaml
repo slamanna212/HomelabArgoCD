@@ -25,7 +25,7 @@ data:
     model:
       # OpenRouter model slug. Change from the WebUI composer footer or by editing
       # config.yaml on the PVC — this ConfigMap is not re-read after first seed.
-      default: deepseek/deepseek-v4-flash-0731
+      default: deepseek/deepseek-v4.1-flash
       provider: auto
       base_url: https://openrouter.ai/api/v1
     agent:
@@ -53,6 +53,22 @@ data:
       threshold: 0.5
       target_ratio: 0.2
       protect_last_n: 20
+    # OpenViking is the canonical memory provider. Built-in file injection is
+    # disabled to avoid duplicate MEMORY.md/USER.md prompt payloads.
+    memory:
+      memory_enabled: false
+      user_profile_enabled: false
+      provider: openviking
+      openviking:
+        recall_limit: 3
+        recall_score_threshold: 0.35
+        recall_max_injected_chars: 1800
+        profile_token_budget: 800
+        recall_timeout_seconds: 2.0
+        recall_request_timeout_seconds: 1.5
+        recall_full_read_limit: 1
+        recall_prefer_abstract: true
+        recall_resources: false
     security:
       redact_secrets: true
       tirith_enabled: true
@@ -63,4 +79,9 @@ data:
         args:
           - /opt/hermes-todoist/todoist_mcp.py
         connect_timeout: 60
+        enabled: true
+      discord_sender:
+        url: http://hermes-discord-sender.hermes.svc.cluster.local:8080/mcp
+        timeout: 45
+        connect_timeout: 10
         enabled: true
