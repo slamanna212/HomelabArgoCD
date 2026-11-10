@@ -591,26 +591,57 @@ spec:
             - name: collector-scripts
               mountPath: /app
               readOnly: true
-        # Headless Chromium for the agent's browser tools (browser_exec /
+        # Headful Chromium for the agent's browser tools (browser_exec /
         # browser-harness). The harness only drives an already-running Chromium
-        # over CDP — it cannot launch one itself on a headless host (no DISPLAY,
-        # and its local launcher expects an interactive desktop Chrome). So run
-        # the Chrome headless shell the agent image already ships (Playwright's
-        # chromium_headless_shell, revision 1234 under /opt/hermes/.playwright)
-        # as a sidecar. Same pod = same network namespace, so both agent
-        # containers reach it on loopback via BU_CDP_URL.
-        # The revision dir tracks the pinned agent image digest above — bump
-        # them together.
+        # over CDP — it cannot launch one itself (no DISPLAY, and its local
+        # launcher expects an interactive desktop Chrome). So run a real browser
+        # on a private X display as a sidecar. Same pod = same network
+        # namespace, so both agent containers reach it on loopback via
+        # BU_CDP_URL.
+        #
+        # It has to be HEADFUL. chrome-headless-shell is rejected outright by
+        # Cloudflare bot management (registrar and admin panels sit on "Just a
+        # moment..." forever, with no way through), and --headless=new on the
+        # full build still sends `HeadlessChrome/<ver>` as the UA, so it is
+        # flagged exactly the same way (verified against Chrome 157). A full
+        # browser on a display passes.
+        #
+        # The -desktop variant is this same agent image built with
+        # HERMES_BOT_DESKTOP=1: that is what ships a headed browser (apt
+        # `chromium` plus Playwright's full chromium build) and a userspace X
+        # server (tigervnc Xvnc — the base image has no Xvfb). Keep its version
+        # in step with the agent image tag above; Renovate tracks the -desktop
+        # tag as its own dependency.
         - name: chromium
-          image: nousresearch/hermes-agent@sha256:ccc46f54e3a0938ec955df36c40db0e3a01ce5bc3a8639376a840016175654d3
-          command: ["/bin/sh", "-ec"]
+          image: nousresearch/hermes-agent:v2026.9.24-desktop@sha256:45379eb3eb2d11c38df9b0e529dc734775b42c40b57cfb1cae0448f0cb7bf647
+          command: ["/bin/bash", "-c"]
           args:
             - |
-              exec /opt/hermes/.playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell \
+              set -u
+              export DISPLAY=:99
+              CHROME="$(command -v chromium || command -v chromium-browser || true)"
+              if [ -z "$CHROME" ]; then
+                CHROME="$(ls -1d /opt/hermes/.playwright/chromium-*/chrome-linux/chrome 2>/dev/null | tail -1)"
+              fi
+              XSRV="$(command -v Xvfb || command -v Xtigervnc || command -v Xvnc || true)"
+              if [ -z "$CHROME" ] || [ -z "$XSRV" ]; then
+                echo "chromium sidecar: no headed browser or X server in this image" >&2
+                echo "  chrome=${CHROME:-none} xserver=${XSRV:-none}" >&2
+                exit 1
+              fi
+              case "$XSRV" in
+                *Xvfb) "$XSRV" :99 -screen 0 1600x1000x24 -nolisten tcp & ;;
+                *)     "$XSRV" :99 -geometry 1600x1000 -depth 24 -SecurityTypes None \
+                              -AlwaysShared -localhost -rfbport 5999 & ;;
+              esac
+              for _ in $(seq 1 60); do [ -e /tmp/.X11-unix/X99 ] && break; sleep 0.25; done
+              echo "chromium sidecar: ${CHROME} on ${DISPLAY}"
+              exec "$CHROME" \
                 --remote-debugging-address=127.0.0.1 \
                 --remote-debugging-port=9222 \
                 --no-sandbox \
                 --disable-gpu \
+                --disable-dev-shm-usage \
                 --no-first-run \
                 --no-default-browser-check \
                 --user-data-dir=/tmp/chromium-profile
@@ -630,13 +661,15 @@ spec:
           # drive the browser), so kubelet's httpGet against the pod IP can't
           # probe it — use an exec probe that runs inside the container.
           # Restarts a wedged browser without touching the rest of the pod.
+          # A headful browser plus its X server takes longer to answer than the
+          # old headless shell did.
           livenessProbe:
             exec:
               command:
                 - python3
                 - -c
                 - "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9222/json/version',timeout=3)"
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             periodSeconds: 30
             failureThreshold: 3
           resources:
@@ -644,8 +677,8 @@ spec:
               cpu: 50m
               memory: 256Mi
             limits:
-              cpu: "1"
-              memory: 1Gi
+              cpu: "2"
+              memory: 2Gi
           volumeMounts:
             - name: dshm
               mountPath: /dev/shm
