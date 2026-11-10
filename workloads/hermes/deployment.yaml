@@ -26,6 +26,16 @@ spec:
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+      # Bitwarden (Vaultwarden) is LAN-only and split-horizon: the name lives in
+      # AdGuard (10.1.10.4/.5) -> 10.1.10.20, but cluster DNS forwards to Unbound
+      # (10.1.10.1), which answers NODATA for it, and public DNS resolves it to
+      # Cloudflare where the tunnel 502s (origin TLS vs IP). Pinning the single
+      # name here is deliberate: a zone-wide Unbound private-domain entry for
+      # slamautils.com is wrong because several names in that zone are public-only.
+      hostAliases:
+        - ip: "10.1.10.20"
+          hostnames:
+            - valkyrie.slamautils.com
       initContainers:
         # Both upstream images start their entrypoint as root to align UID/GID and
         # prepare mounts, then drop to an unprivileged user (1000). We pre-create and
