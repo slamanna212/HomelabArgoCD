@@ -21,7 +21,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: valkey
-          image: valkey/valkey:8.1.8-alpine
+          image: valkey/valkey:8.1.11-alpine
           command: ["valkey-server", "--save", "", "--appendonly", "no", "--maxmemory", "384mb", "--maxmemory-policy", "allkeys-lru"]
           securityContext:
             readOnlyRootFilesystem: true
