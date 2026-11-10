@@ -124,7 +124,7 @@ spec:
         # Install the only Python dependency into an emptyDir so the long-running
         # collector can run unprivileged and restarts do not download packages.
         - name: install-ai-collector-deps
-          image: python:3.12-alpine
+          image: python:3.15-alpine
           command: ["/bin/sh", "-ec"]
           args:
             - |
@@ -518,7 +518,7 @@ spec:
         # Native AI allowance collector. Claude uses its own persisted OAuth
         # refresh-token lifecycle; Codex is read-only against the gateway auth store.
         - name: ai-usage-collector
-          image: python:3.12-alpine
+          image: python:3.15-alpine
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
