@@ -116,12 +116,6 @@
       "schedule": ["before 4am on monday"]
     },
     {
-      "description": "The chromium sidecar pins the -desktop variant of the Hermes agent image (the only build shipping a headed browser + X server). Scoped by currentValue so Renovate never offers a -desktop build for the agent containers, or a plain build for the sidecar. Must stay AFTER the hermes group rule: later rules win on allowedVersions.",
-      "matchPackageNames": ["nousresearch/hermes-agent"],
-      "matchCurrentValue": "/-desktop$/",
-      "allowedVersions": "/^v?\\d+\\.\\d+\\.\\d+-desktop$/"
-    },
-    {
       "description": "Celeste publishes floating 0.1/latest/sha-* tags next to the real releases; only track stable X.Y.Z",
       "matchPackageNames": ["slamanna212/celeste"],
       "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/",
