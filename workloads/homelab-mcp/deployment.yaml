@@ -32,7 +32,7 @@ spec:
       serviceAccountName: homelab-mcp
       containers:
         - name: mcp
-          image: python:3.12-slim
+          image: python:3.15-slim
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
