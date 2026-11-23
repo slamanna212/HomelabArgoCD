@@ -483,7 +483,7 @@ spec:
           # would silently change the running UI on any pod restart or node reboot,
           # the same trap as gluetun's `:latest` in CLAUDE.md. To bump, replace the
           # sha with the new commit's sha once its "Container" run has pushed it.
-          image: ghcr.io/slamanna212/astra:sha-40e7f8311b007324ec2b39cead3fa4e2e5314191
+          image: ghcr.io/slamanna212/astra:sha-63494d4bec9959d1900ac480f2bee6abbb6a0b97
           imagePullPolicy: IfNotPresent
           # The image already runs as uid 1000 and never needs root (unlike the two
           # upstream images, which do UID alignment then drop), so it can be locked
