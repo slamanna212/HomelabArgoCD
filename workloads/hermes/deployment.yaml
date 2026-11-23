@@ -71,8 +71,8 @@ spec:
               chown -R 1000:1000 /agent-src
               chmod -R u+rX /agent-src
 
-              mkdir -p /data/home /data/workspace /data/ai-usage
-              chown 1000:1000 /data/home /data/workspace /data/ai-usage
+              mkdir -p /data/home /data/workspace /data/ai-usage /data/browser-profile
+              chown 1000:1000 /data/home /data/workspace /data/ai-usage /data/browser-profile
 
               # Seed config.yaml exactly once. Hermes rewrites this file at runtime
               # (model switching from the WebUI, onboarding), so re-copying it on
@@ -615,6 +615,19 @@ spec:
         # every container means a single copy on the node instead of a second
         # ~1.4 GB agent image pulled just for a browser, and Renovate still
         # tracks one tag for all of them.
+        #
+        # Being headful is necessary but not sufficient — three defaults still
+        # misrepresented the session (measured 2026-11-23):
+        #   - user-data-dir was /tmp, so the profile died with the container and
+        #     every session presented zero cookies and zero history. It now lives
+        #     on the PVC (subPath browser-profile, created and chowned by the
+        #     prepare init container before this container starts).
+        #   - no TZ, so a UTC browser resolved sites from a Comcast Pennsylvania
+        #     address. TZ now matches the egress.
+        #   - --disable-gpu left WebGL reporting no renderer at all. SwiftShader
+        #     via ANGLE reports a real renderer without a GPU on the node.
+        # Sec-CH-UA still advertises Chromium rather than Google Chrome, because
+        # this is Chromium, not a Google build. Do not fake that string.
         - name: chromium
           image: nousresearch/hermes-agent:v2026.9.24-desktop@sha256:45379eb3eb2d11c38df9b0e529dc734775b42c40b57cfb1cae0448f0cb7bf647
           command: ["/bin/bash", "-c"]
@@ -643,11 +656,15 @@ spec:
                 --remote-debugging-address=127.0.0.1 \
                 --remote-debugging-port=9222 \
                 --no-sandbox \
-                --disable-gpu \
                 --disable-dev-shm-usage \
                 --no-first-run \
                 --no-default-browser-check \
-                --user-data-dir=/tmp/chromium-profile
+                --user-data-dir=/profile/browser \
+                --lang=en-US \
+                --force-device-scale-factor=1 \
+                --use-gl=angle \
+                --use-angle=swiftshader \
+                --enable-unsafe-swiftshader
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -655,7 +672,9 @@ spec:
             allowPrivilegeEscalation: false
           env:
             - name: HOME
-              value: /tmp
+              value: /profile
+            - name: TZ
+              value: America/New_York
           ports:
             - name: cdp
               containerPort: 9222
@@ -685,6 +704,9 @@ spec:
           volumeMounts:
             - name: dshm
               mountPath: /dev/shm
+            - name: data
+              mountPath: /profile
+              subPath: browser-profile
       terminationGracePeriodSeconds: 120
       volumes:
         - name: data
