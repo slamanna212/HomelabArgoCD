@@ -254,6 +254,10 @@ data:
             status = head.split(b"\r\n", 1)[0]
             if b" 101 " not in status:
                 raise IOError("handshake refused: %r" % status[:120])
+            # Blocking reads from here on: the connect timeout must not turn an idle
+            # browser into a reconnect every 20s (each reconnect re-attaches and would
+            # re-front every open tab).
+            self.sock.settimeout(None)
     
         def _read(self, n):
             while len(self.buf) < n:
