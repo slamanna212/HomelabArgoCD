@@ -775,6 +775,18 @@ spec:
                 python3 -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9222/json/version',timeout=1)" >/dev/null 2>&1
               }
 
+              # The profile lives on the PVC, so Chrome's Singleton{Lock,Socket,Cookie}
+              # outlive the pod that wrote them. SingletonLock records "<hostname>-<pid>",
+              # and a new pod has a new hostname, so Chrome reads a lock from the
+              # previous pod as "in use on another computer" and refuses to start —
+              # both the branded build and the chromium fallback. That crash-looped
+              # this container and, by keeping the pod NotReady, took the WebUI and
+              # Astra out of the Service too (2026-11-23). Clearing them is safe: the
+              # Deployment is 1 replica with Recreate, and this container is the only
+              # thing that ever opens this profile.
+              rm -f /profile/browser/SingletonLock /profile/browser/SingletonSocket \
+                    /profile/browser/SingletonCookie
+
               launch "$BIN" &
               CHROME_PID=$!
               for _ in $(seq 1 120); do
