@@ -140,6 +140,86 @@ spec:
             limits:
               cpu: 250m
               memory: 256Mi
+        # Everything the browser container needs but cannot prepare for itself: it
+        # runs as uid 1000 in an image that ships an un-branded chromium, so a
+        # branded Google Chrome build and a desktop font set have to be assembled
+        # here, as root, before it starts.
+        #
+        # Google Chrome, not Debian chromium, because only a branded build presents
+        # `Google Chrome` in `sec-ch-ua`, exposes `chrome.runtime`, and stays current
+        # (the image's chromium 153 was five majors behind Chrome stable 158). The
+        # .deb is cached on the PVC and refreshed when older than 14 days; the
+        # extracted tree is 460 MB and identical on every start, so it goes to an
+        # emptyDir instead of the PVC.
+        #
+        # A failure here is never fatal — the sidecar falls back to the image's own
+        # chromium and everything still works, just less convincingly.
+        - name: browser-assets
+          image: nousresearch/hermes-agent:v2026.9.24-desktop@sha256:45379eb3eb2d11c38df9b0e529dc734775b42c40b57cfb1cae0448f0cb7bf647
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -u
+              ASSETS=/data/browser-profile/.assets
+              mkdir -p "$ASSETS"
+              deb="$ASSETS/google-chrome-stable.deb"
+              if [ ! -s "$deb" ] || [ -n "$(find "$deb" -mtime +14 2>/dev/null)" ]; then
+                echo "browser-assets: fetching google-chrome-stable"
+                if curl -fsSL --retry 3 --max-time 300 -o "$deb.part" \
+                     https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb; then
+                  mv "$deb.part" "$deb"
+                else
+                  rm -f "$deb.part"
+                  echo "browser-assets: chrome fetch failed; sidecar will fall back to chromium" >&2
+                fi
+              fi
+              if [ -s "$deb" ]; then
+                rm -rf /chrome-dist/opt
+                dpkg-deb -x "$deb" /chrome-dist
+                chown -R 1000:1000 /chrome-dist
+                echo "browser-assets: $(/chrome-dist/opt/google/chrome/google-chrome --version 2>/dev/null || echo 'chrome extracted, version check FAILED (missing lib?)')"
+              fi
+
+              # Fonts. A bare container ships 58 faces (Liberation, DejaVu, Unifont,
+              # IPA, WenQuanYi) and no Roboto/Noto Sans/Cantarell/Inter — sparse font
+              # enumeration is its own signal, and it skews canvas text metrics. The
+              # set is written to ~/.fonts on the PVC, which Debian's fonts.conf reads
+              # (the sidecar's HOME is /profile), so it survives restarts.
+              FONTS=/data/browser-profile/.fonts
+              mkdir -p "$FONTS"
+              if [ ! -e "$FONTS/.complete" ]; then
+                tmp="$(mktemp -d)"
+                if ( cd "$tmp" && apt-get update -qq >/dev/null 2>&1 ); then
+                  # fonts-roboto is a metapackage; -unhinted carries the actual faces.
+                  for pkg in fonts-noto-core fonts-roboto-unhinted fonts-cantarell fonts-inter; do
+                    ( cd "$tmp" && apt-get download "$pkg" >/dev/null 2>&1 ) \
+                      || echo "browser-assets: $pkg unavailable" >&2
+                  done
+                  for deb in "$tmp"/*.deb; do [ -e "$deb" ] && dpkg-deb -x "$deb" "$tmp/x"; done
+                  find "$tmp/x" -type f \( -name '*.ttf' -o -name '*.otf' \) -exec cp -n {} "$FONTS/" \;
+                  if [ "$(ls -1 "$FONTS" | wc -l)" -gt 60 ]; then
+                    touch "$FONTS/.complete"
+                  fi
+                  echo "browser-assets: $(ls -1 "$FONTS" | wc -l) font files installed"
+                else
+                  echo "browser-assets: apt index unavailable; leaving the stock font set" >&2
+                fi
+                rm -rf "$tmp"
+              fi
+              chown -R 1000:1000 "$ASSETS" "$FONTS"
+              chmod -R u+rwX,go+rX "$ASSETS" "$FONTS"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: chrome-dist
+              mountPath: /chrome-dist
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
       containers:
         # The gateway process: Discord, cron/scheduled jobs, and the agent API on
         # 8642. This is what keeps working while you are away — the WebUI alone
@@ -616,7 +696,7 @@ spec:
         # ~1.4 GB agent image pulled just for a browser, and Renovate still
         # tracks one tag for all of them.
         #
-        # Being headful is necessary but not sufficient — three defaults still
+        # Being headful is necessary but not sufficient — four defaults still
         # misrepresented the session (measured 2026-11-23):
         #   - user-data-dir was /tmp, so the profile died with the container and
         #     every session presented zero cookies and zero history. It now lives
@@ -625,9 +705,18 @@ spec:
         #   - no TZ, so a UTC browser resolved sites from a Comcast Pennsylvania
         #     address. TZ now matches the egress.
         #   - --disable-gpu left WebGL reporting no renderer at all. SwiftShader
-        #     via ANGLE reports a real renderer without a GPU on the node.
-        # Sec-CH-UA still advertises Chromium rather than Google Chrome, because
-        # this is Chromium, not a Google build. Do not fake that string.
+        #     via ANGLE reports a renderer without a GPU on the node; the software
+        #     string itself is then covered by /browser-fp/fp.js (see below).
+        #   - no window geometry until a tab was activated, so outerWidth/Height and
+        #     screenX/Y read 0 and every page reported visibilityState "hidden" with
+        #     hasFocus() false — the loudest headless signal there is, and true of
+        #     every tab the harness opened. Fixed three ways: --window-size/position
+        #     here, Page.bringToFront on every new target, and a shim fallback.
+        #
+        # The browser binary itself is Google Chrome (browser-assets init container),
+        # not the image's Debian chromium: that is what makes sec-ch-ua advertise
+        # "Google Chrome" alongside "Chromium", exposes window.chrome.runtime, and
+        # keeps the build current instead of five majors behind.
         - name: chromium
           image: nousresearch/hermes-agent:v2026.9.24-desktop@sha256:45379eb3eb2d11c38df9b0e529dc734775b42c40b57cfb1cae0448f0cb7bf647
           command: ["/bin/bash", "-c"]
@@ -651,20 +740,63 @@ spec:
                               -AlwaysShared -localhost -rfbport 5999 & ;;
               esac
               for _ in $(seq 1 60); do [ -e /tmp/.X11-unix/X99 ] && break; sleep 0.25; done
-              echo "chromium sidecar: ${CHROME} on ${DISPLAY}"
-              exec "$CHROME" \
-                --remote-debugging-address=127.0.0.1 \
-                --remote-debugging-port=9222 \
-                --no-sandbox \
-                --disable-dev-shm-usage \
-                --no-first-run \
-                --no-default-browser-check \
-                --user-data-dir=/profile/browser \
-                --lang=en-US \
-                --force-device-scale-factor=1 \
-                --use-gl=angle \
-                --use-angle=swiftshader \
-                --enable-unsafe-swiftshader
+
+              # Prefer the branded build prepared by the browser-assets init container.
+              # It must actually execute before we commit to it — a .deb extracted
+              # into an emptyDir can still be missing a runtime library.
+              BRANDED=/chrome-dist/opt/google/chrome/google-chrome
+              if [ -x "$BRANDED" ] && "$BRANDED" --version >/dev/null 2>&1; then
+                BIN="$BRANDED"
+                echo "chromium sidecar: $("$BRANDED" --version 2>/dev/null) on ${DISPLAY}"
+              else
+                BIN="$CHROME"
+                echo "chromium sidecar: ${CHROME} on ${DISPLAY} (no usable branded build)"
+              fi
+
+              launch() {
+                "$1" \
+                  --remote-debugging-address=127.0.0.1 \
+                  --remote-debugging-port=9222 \
+                  --no-sandbox \
+                  --disable-dev-shm-usage \
+                  --no-first-run \
+                  --no-default-browser-check \
+                  --user-data-dir=/profile/browser \
+                  --lang=en-US \
+                  --force-device-scale-factor=1 \
+                  --window-size=1440,900 \
+                  --window-position=80,60 \
+                  --use-gl=angle \
+                  --use-angle=swiftshader \
+                  --enable-unsafe-swiftshader
+              }
+
+              cdp_up() {
+                python3 -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9222/json/version',timeout=1)" >/dev/null 2>&1
+              }
+
+              launch "$BIN" &
+              CHROME_PID=$!
+              for _ in $(seq 1 120); do
+                cdp_up && break
+                kill -0 "$CHROME_PID" 2>/dev/null || break
+                sleep 0.25
+              done
+              if ! cdp_up; then
+                echo "chromium sidecar: no CDP from $BIN; falling back to ${CHROME}" >&2
+                kill "$CHROME_PID" 2>/dev/null
+                sleep 1
+                launch "$CHROME" &
+                CHROME_PID=$!
+              fi
+
+              # Identity shim: installs /browser-fp/fp.js into every page at
+              # document_start (WebGL renderer, hardware narrative, media devices,
+              # visibility/focus) and brings each new tab to the front so the real
+              # window state agrees with it. Reconnects on its own if CDP drops.
+              python3 /browser-fp/supervisor.py &
+              echo "chromium sidecar: identity shim started"
+              wait "$CHROME_PID"
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -707,6 +839,13 @@ spec:
             - name: data
               mountPath: /profile
               subPath: browser-profile
+            # Branded Google Chrome, extracted from the .deb by browser-assets.
+            - name: chrome-dist
+              mountPath: /chrome-dist
+            # fp.js + supervisor.py (identity shim and its injector).
+            - name: browser-fp
+              mountPath: /browser-fp
+              readOnly: true
       terminationGracePeriodSeconds: 120
       volumes:
         - name: data
@@ -729,6 +868,15 @@ spec:
           configMap:
             name: hermes-memory-sidecar-fix
             defaultMode: 0555
+        # Extracted Google Chrome tree (browser-assets init container -> sidecar).
+        - name: chrome-dist
+          emptyDir: {}
+        # Identity shim source + injector, read by the sidecar from a ConfigMap so a
+        # patch to fp.js is a commit, not an exec.
+        - name: browser-fp
+          configMap:
+            name: hermes-browser-fp
+            defaultMode: 0444
         - name: ai-collector-deps
           emptyDir: {}
         - name: collector-scripts
